@@ -1,4 +1,0 @@
-let h = 3
-let g = fn() { h() }
-let f = fn() { g() }
-f()

@@ -1,4 +1,0 @@
-let a = 1
-print("hello")
-let b = 2
-[a, b]

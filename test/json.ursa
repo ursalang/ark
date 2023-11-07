@@ -1,4 +1,0 @@
-[
-  JSON.parse("1") + 2,
-  JSON.stringify([1, 2, 3]) == "[1,2,3]"
-]

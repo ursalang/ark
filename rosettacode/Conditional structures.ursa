@@ -1,1 +1,0 @@
-if x > 9000 { "That's impossible!!!" } else { "Ok, I guess" }

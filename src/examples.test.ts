@@ -11,4 +11,4 @@ import {cliTest} from './testutil.js'
   ['Double list', 'test/double-list'],
   ['Assign to table', 'test/assign-to-table'],
   ['Repeated closure', 'test/repeated-closure'],
-].map(([title, file]) => cliTest('json', title, file))
+].map(([title, file]) => cliTest(title, file))

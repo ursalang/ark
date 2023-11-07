@@ -1,5 +1,0 @@
-let tot = 0;
-let accum = fn(x) {
-  tot := tot + x
-};
-[accum(1), accum(1)]

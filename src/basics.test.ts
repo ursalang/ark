@@ -8,7 +8,7 @@ import {
 import {toJs} from './ffi.js'
 import {compile} from './compiler.js'
 
-import {testArkGroup as testGroup} from '../testutil.js'
+import {testGroup} from './testutil.js'
 
 Error.stackTraceLimit = Infinity
 

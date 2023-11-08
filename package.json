@@ -48,7 +48,8 @@
         "src/": "lib/"
       },
       "compile": "tsc"
-    }
+    },
+    "workerThreads": false
   },
   "pre-push": [
     "lint",

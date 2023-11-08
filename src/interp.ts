@@ -23,7 +23,7 @@ export class RuntimeStack {
   }
 }
 
-export type FreeVarsMap = Map<string, Ref[]>
+export type FreeVarsMap = Map<string, (StackRef | ValRef)[]>
 
 export class ArkState {
   constructor() {

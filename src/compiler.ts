@@ -4,7 +4,7 @@ import {
   debug,
   Val, intrinsics,
   Null, Bool, Num, Str, ValRef, StackRef, Ass, Get,
-  ListLiteral, ObjLiteral, DictLiteral, Ref,
+  ListLiteral, ObjLiteral, DictLiteral,
   Fn, Fexpr, Prop, Let, Call, ConcreteVal, globals, FreeVarsMap,
 } from './interp.js'
 
@@ -31,7 +31,7 @@ export class Namespace extends Map<string, Val> {
   }
 }
 
-export class FreeVars extends Map<string, Ref[]> {
+export class FreeVars extends Map<string, (StackRef | ValRef)[]> {
   merge(moreVars: FreeVarsMap): FreeVars {
     for (const [name, symrefs] of moreVars) {
       if (!this.has(name)) {

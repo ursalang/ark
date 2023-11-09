@@ -5,7 +5,7 @@ import {
   Val, intrinsics,
   Null, Bool, Num, Str, ValRef, StackRef, Ass, Get,
   ListLiteral, ObjLiteral, DictLiteral,
-  Fn, Fexpr, Prop, Let, Call, ConcreteVal, globals, FreeVarsMap,
+  Fn, Prop, Let, Call, ConcreteVal, globals, FreeVarsMap,
 } from './interp.js'
 
 export class ArkCompilerError extends Error {}
@@ -173,18 +173,6 @@ function doCompile(value: any, env: Environment): CompiledArk {
           params.forEach((p) => compiled.freeVars.delete(p))
           return new CompiledArk(
             new Fn(params, compiled.freeVars, compiled.value),
-            compiled.freeVars,
-          )
-        }
-        case 'fexpr': {
-          if (value.length !== 3) {
-            throw new ArkCompilerError("Invalid 'fexpr'")
-          }
-          const params = arkParamList(value[1])
-          const compiled = doCompile(value[2], env.pushFrame(params))
-          params.map((p) => compiled.freeVars.delete(p))
-          return new CompiledArk(
-            new Fexpr(params, compiled.freeVars, compiled.value),
             compiled.freeVars,
           )
         }

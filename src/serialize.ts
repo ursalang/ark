@@ -1,6 +1,6 @@
 import {PartialCompiledArk} from './compiler.js'
 import {
-  Ass, Call, ConcreteVal, Dict, Fexpr, Fn, Get, Let, List,
+  Ass, Call, ConcreteVal, Dict, Fn, Get, Let, List,
   NativeObj, Null, Obj, Prop, PropRef, Undefined, Val, ValRef,
 } from './interp.js'
 
@@ -25,8 +25,6 @@ function doSerialize(val: Val): any {
     return ['get', doSerialize(val.children[0])]
   } else if (val instanceof Fn) {
     return ['fn', ['params', ...val.params], doSerialize(val.children[0])]
-  } else if (val instanceof Fexpr) {
-    return ['fexpr', ['params', ...val.params], doSerialize(val.children[0])]
   } else if (val instanceof Obj) {
     const obj = {}
     for (const [k, v] of val.val) {

@@ -36,7 +36,7 @@ export class ArkState {
 
   debug: Map<string, any> = new Map()
 
-  captureFreeVars(cl: Fexpr): Ref[] {
+  captureFreeVars(cl: Fn): Ref[] {
     const frame: Ref[] = []
     for (const loc of cl.boundFreeVars) {
       const ref = new ValRef(this.stack.pushFrame([[], []]).stack[loc.level][0][loc.index])
@@ -174,13 +174,14 @@ export function bindArgsToParams(params: string[], args: Val[]): Ref[] {
   return frame
 }
 
-class FexprClosure extends Val {
+class FnClosure extends Val {
   constructor(public params: string[], public freeVars: Ref[], body: Val) {
     super()
     this.addChild(body)
   }
 
   call(ark: ArkState, ...args: Val[]): Val {
+    args = ark.evaluateArgs(...args)
     let res: Val = Null()
     try {
       const frame = bindArgsToParams(this.params, args)
@@ -198,13 +199,7 @@ class FexprClosure extends Val {
   }
 }
 
-class FnClosure extends FexprClosure {
-  call(ark: ArkState, ...args: Val[]): Val {
-    return super.call(ark, ...ark.evaluateArgs(...args))
-  }
-}
-
-export class Fexpr extends Val {
+export class Fn extends Val {
   boundFreeVars: StackRef[] = []
 
   constructor(public params: string[], protected freeVars: FreeVarsMap, body: Val) {
@@ -229,12 +224,6 @@ export class Fexpr extends Val {
     }
   }
 
-  _eval(ark: ArkState): Val {
-    return new FexprClosure(this.params, ark.captureFreeVars(this), this.children[0])
-  }
-}
-
-export class Fn extends Fexpr {
   _eval(ark: ArkState): Val {
     return new FnClosure(this.params, ark.captureFreeVars(this), this.children[0])
   }
@@ -272,7 +261,7 @@ export class Call extends Val {
       sym = fn.children[0]
     }
     const fnVal = fn.eval(ark)
-    if (!(fnVal instanceof FexprClosure || fnVal instanceof NativeFexpr)) {
+    if (!(fnVal instanceof FnClosure || fnVal instanceof NativeFexpr)) {
       throw new ArkRuntimeError('Invalid call', this)
     }
     const callStack = ark.debug.get('callStack')

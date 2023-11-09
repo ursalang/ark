@@ -76,8 +76,6 @@ export class Val {
     Val.nextId += 1
   }
 
-  children: Val[] = []
-
   debug: Map<string, any> = new Map()
 
   _eval(_ark: ArkState): Val {
@@ -94,10 +92,6 @@ export class Val {
       ark.debug.get('sourceStack').shift()
     }
     return res
-  }
-
-  protected addChild(child: Val) {
-    this.children.push(child)
   }
 }
 
@@ -164,9 +158,8 @@ export function bindArgsToParams(params: string[], args: Val[]): Ref[] {
 }
 
 class FnClosure extends Val {
-  constructor(public params: string[], public freeVars: Ref[], body: Val) {
+  constructor(public params: string[], public freeVars: Ref[], public body: Val) {
     super()
-    this.addChild(body)
   }
 
   call(ark: ArkState, ...args: Val[]): Val {
@@ -176,7 +169,7 @@ class FnClosure extends Val {
       const frame = bindArgsToParams(this.params, args)
       const oldStack = ark.stack
       ark.stack = ark.stack.pushFrame([frame, this.freeVars])
-      res = this.children[0].eval(ark)
+      res = this.body.eval(ark)
       ark.stack = oldStack
     } catch (e) {
       if (!(e instanceof ReturnException)) {
@@ -189,13 +182,12 @@ class FnClosure extends Val {
 }
 
 export class Fn extends Val {
-  constructor(public params: string[], public boundFreeVars: StackRef[], body: Val) {
+  constructor(public params: string[], public boundFreeVars: StackRef[], public body: Val) {
     super()
-    this.addChild(body)
   }
 
   _eval(ark: ArkState): Val {
-    return new FnClosure(this.params, ark.captureFreeVars(this), this.children[0])
+    return new FnClosure(this.params, ark.captureFreeVars(this), this.body)
   }
 }
 
@@ -216,19 +208,15 @@ export class NativeFn extends NativeFexpr {
 }
 
 export class Call extends Val {
-  constructor(fn: Val, args: Val[]) {
+  constructor(public fn: Val, public args: Val[]) {
     super()
-    this.addChild(fn)
-    for (const arg of args) {
-      this.addChild(arg)
-    }
   }
 
   _eval(ark: ArkState): Val {
-    const fn = this.children[0]
+    const fn = this.fn
     let sym: Ref | undefined
-    if (fn instanceof Get && fn.children[0] instanceof Ref) {
-      sym = fn.children[0]
+    if (fn instanceof Get && fn.val instanceof Ref) {
+      sym = fn.val
     }
     const fnVal = fn.eval(ark)
     if (!(fnVal instanceof FnClosure || fnVal instanceof NativeFexpr)) {
@@ -238,7 +226,7 @@ export class Call extends Val {
     const fnSymStack = ark.debug.get('fnSymStack')
     callStack.unshift(this)
     fnSymStack.unshift(sym)
-    const args = this.children.slice(1)
+    const args = this.args
     const res = fnVal.call(ark, ...args)
     callStack.shift()
     fnSymStack.pop()
@@ -257,17 +245,16 @@ export abstract class Ref extends Val {
 }
 
 export class ValRef extends Ref {
-  constructor(val: Val = Null()) {
+  constructor(public val: Val = Null()) {
     super()
-    this.addChild(val)
   }
 
   get(_stack: RuntimeStack): Val {
-    return this.children[0]
+    return this.val
   }
 
   set(_stack: RuntimeStack, val: Val): Val {
-    this.children[0] = val
+    this.val = val
     return val
   }
 }
@@ -304,31 +291,28 @@ export class CaptureRef extends Ref {
 }
 
 export class Get extends Val {
-  constructor(val: Val) {
+  constructor(public val: Val) {
     super()
-    this.addChild(val)
   }
 
   _eval(ark: ArkState): Val {
-    const ref = (this.children[0].eval(ark) as Ref)
+    const ref = (this.val.eval(ark) as Ref)
     const val = ref.get(ark.stack)
     if (val === Undefined) {
-      throw new ArkRuntimeError(`Uninitialized symbol ${this.children[0].debug.get('name')}`, this)
+      throw new ArkRuntimeError(`Uninitialized symbol ${this.val.debug.get('name')}`, this)
     }
     return val
   }
 }
 
 export class Ass extends Val {
-  constructor(ref: Val, val: Val) {
+  constructor(public ref: Val, public val: Val) {
     super()
-    this.addChild(ref)
-    this.addChild(val)
   }
 
   _eval(ark: ArkState): Val {
-    const ref = this.children[0].eval(ark)
-    const res = this.children[1].eval(ark)
+    const ref = this.ref.eval(ark)
+    const res = this.val.eval(ark)
     if (!(ref instanceof Ref)) {
       throw new ArkRuntimeError('Invalid assignment', this)
     }
@@ -390,29 +374,27 @@ export class NativeObj extends Val {
 }
 
 export class Prop extends Val {
-  constructor(public prop: string, obj: Val) {
+  constructor(public prop: string, public obj: Val) {
     super()
-    this.addChild(obj)
   }
 
   _eval(ark: ArkState): Val {
-    const obj = this.children[0].eval(ark)
+    const obj = this.obj.eval(ark)
     return new PropRef(obj as Obj, this.prop)
   }
 }
 
 export class PropRef extends Ref {
-  constructor(obj: Obj, public prop: string) {
+  constructor(public obj: Obj, public prop: string) {
     super()
-    this.addChild(obj)
   }
 
   get(_stack: RuntimeStack) {
-    return (this.children[0] as Obj).get(this.prop) ?? Null()
+    return this.obj.get(this.prop) ?? Null()
   }
 
   set(_stack: RuntimeStack, val: Val) {
-    (this.children[0] as Obj).set(this.prop, val)
+    this.obj.set(this.prop, val)
     return val
   }
 }

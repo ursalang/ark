@@ -5,7 +5,7 @@ import {
   Val, intrinsics,
   Null, Bool, Num, Str, ValRef, StackRef, Ass, Get,
   ListLiteral, ObjLiteral, DictLiteral,
-  Fn, Prop, Let, Call, ConcreteVal, globals, FreeVarsMap,
+  Fn, Prop, Let, Call, ConcreteVal, globals, FreeVarsMap, CaptureRef, Ref,
 } from './interp.js'
 
 export class ArkCompilerError extends Error {}
@@ -31,7 +31,7 @@ export class Namespace extends Map<string, Val> {
   }
 }
 
-export class FreeVars extends Map<string, (StackRef | ValRef)[]> {
+export class FreeVars extends Map<string, StackRef[]> {
   merge(moreVars: FreeVarsMap): FreeVars {
     for (const [name, symrefs] of moreVars) {
       if (!this.has(name)) {
@@ -44,24 +44,28 @@ export class FreeVars extends Map<string, (StackRef | ValRef)[]> {
 }
 
 export class Environment {
-  constructor(public stack: string[][] = [[]], public externalSyms: Namespace = globals) {
+  // Each stack frame consists of a pair of local vars and captures
+  constructor(
+    public stack: [string[], string[]][] = [[[], []]],
+    public externalSyms: Namespace = globals,
+  ) {
     assert(stack.length > 0)
   }
 
   push(items: string[]) {
     return new (this.constructor as any)(
-      [[...this.stack[0].slice(), ...items], ...this.stack.slice(1)],
+      [[[...this.stack[0][0].slice(), ...items], this.stack[0][1]], ...this.stack.slice(1)],
     )
   }
 
-  pushFrame(frame: string[]) {
+  pushFrame(frame: [string[], string[]]) {
     return new (this.constructor as any)([frame, ...this.stack.slice()])
   }
 
-  getIndex(sym: string): StackRef | ValRef {
+  getIndex(sym: string): Ref {
     let ref
     for (let i = 0; i < this.stack.length; i += 1) {
-      const j = this.stack[i].lastIndexOf(sym)
+      const j = this.stack[i][0].lastIndexOf(sym)
       if (j !== -1) {
         ref = new StackRef(i, j)
         break
@@ -116,8 +120,19 @@ export function symRef(env: Environment, name: string): CompiledArk {
   if (val !== undefined) {
     return new CompiledArk(val)
   }
-  const ref = env.getIndex(name)
-  return new CompiledArk(ref, new FreeVars([[name, [ref]]]))
+  let ref = env.getIndex(name)
+  const freeVars = new FreeVars(ref instanceof StackRef ? [[name, [ref]]] : [])
+  const i = env.stack[0][1].lastIndexOf(name)
+  if (i !== -1) {
+    ref = new CaptureRef(i)
+  }
+  if (ref instanceof StackRef && ref.level > 0) {
+    // Reference to outer stack level: capture it.
+    const k = env.stack[0][1].length
+    ref = new CaptureRef(k)
+    env.stack[0][1].push(name)
+  }
+  return new CompiledArk(ref, freeVars)
 }
 
 export class CompiledArk {
@@ -169,10 +184,10 @@ function doCompile(value: any, env: Environment): CompiledArk {
             throw new ArkCompilerError("Invalid 'fn'")
           }
           const params = arkParamList(value[1])
-          const compiled = doCompile(value[2], env.pushFrame(params))
+          const compiled = doCompile(value[2], env.pushFrame([params, []]))
           params.forEach((p) => compiled.freeVars.delete(p))
           return new CompiledArk(
-            new Fn(params, compiled.freeVars, compiled.value),
+            new Fn(params, [...compiled.freeVars.values()].flat(), compiled.value),
             compiled.freeVars,
           )
         }

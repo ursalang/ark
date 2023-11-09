@@ -5,11 +5,8 @@ import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 
 export class RuntimeStack {
   // Each stack frame consists of a pair of local vars and captures
-  public stack: [Val[], Ref[]][]
-
-  constructor(outerStack: [Val[], Ref[]][] = [[[], []]]) {
-    assert(outerStack.length > 0)
-    this.stack = outerStack
+  constructor(public stack: [Val[], Ref[]][] = [[[], []]]) {
+    assert(stack.length > 0)
   }
 
   push(items: Val[]) {
@@ -23,7 +20,7 @@ export class RuntimeStack {
   }
 }
 
-export type FreeVarsMap = Map<string, (StackRef | ValRef)[]>
+export type FreeVarsMap = Map<string, StackRef[]>
 
 export class ArkState {
   constructor() {
@@ -81,8 +78,6 @@ export class Val {
 
   children: Val[] = []
 
-  static parentRef: WeakMap<Val, [Val, number]> = new WeakMap()
-
   debug: Map<string, any> = new Map()
 
   _eval(_ark: ArkState): Val {
@@ -102,13 +97,7 @@ export class Val {
   }
 
   protected addChild(child: Val) {
-    Val.parentRef.set(child, [this, this.children.length])
     this.children.push(child)
-  }
-
-  setSelf(val: Val) {
-    const [parent, index] = Val.parentRef.get(this)!
-    parent.children[index] = val
   }
 }
 
@@ -200,28 +189,9 @@ class FnClosure extends Val {
 }
 
 export class Fn extends Val {
-  boundFreeVars: StackRef[] = []
-
-  constructor(public params: string[], protected freeVars: FreeVarsMap, body: Val) {
+  constructor(public params: string[], public boundFreeVars: StackRef[], body: Val) {
     super()
     this.addChild(body)
-    let numStackFreeVars = 0
-    for (const [, refs] of this.freeVars) {
-      let isStackFreeVar = false
-      for (const ref of refs) {
-        if (ref instanceof StackRef) {
-          assert(ref.level > 0)
-          if (!isStackFreeVar) {
-            isStackFreeVar = true
-            this.boundFreeVars.push(ref)
-            numStackFreeVars += 1
-          }
-          const captureRef = new CaptureRef(numStackFreeVars - 1)
-          captureRef.debug.set('name', ref.debug.get('name'))
-          ref.setSelf(captureRef)
-        }
-      }
-    }
   }
 
   _eval(ark: ArkState): Val {

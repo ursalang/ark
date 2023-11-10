@@ -231,7 +231,7 @@ export class ArkCall extends ArkExp {
     const args = this.args
     const res = fnVal.call(ark, ...args)
     callStack.shift()
-    fnSymStack.pop()
+    fnSymStack.shift()
     return res
   }
 }

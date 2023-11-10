@@ -1,3 +1,7 @@
+// Parse JSON into Ark code.
+// © Reuben Thomas 2023
+// Released under the GPL version 3, or (at your option) any later version.
+
 import assert from 'assert'
 
 import {

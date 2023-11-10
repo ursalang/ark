@@ -1,3 +1,7 @@
+// Ark test utility routines.
+// © Reuben Thomas 2023
+// Released under the GPL version 3, or (at your option) any later version.
+
 import fs from 'fs'
 import test from 'ava'
 import {ArkState, debug} from './interpreter.js'

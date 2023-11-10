@@ -6,11 +6,11 @@ import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 
 export class RuntimeStack {
   // Each stack frame consists of a pair of local vars and captures
-  constructor(public readonly stack: [Val[], Ref[]][] = [[[], []]]) {
+  constructor(public readonly stack: [ArkVal[], ArkRef[]][] = [[[], []]]) {
     assert(stack.length > 0)
   }
 
-  push(items: Val[]) {
+  push(items: ArkVal[]) {
     this.stack[0][0].push(...items)
     return this
   }
@@ -21,7 +21,7 @@ export class RuntimeStack {
     }
   }
 
-  pushFrame(frame: [Val[], Ref[]]) {
+  pushFrame(frame: [ArkVal[], ArkRef[]]) {
     this.stack.unshift(frame)
     return this
   }
@@ -32,7 +32,7 @@ export class RuntimeStack {
   }
 }
 
-export type FreeVarsMap = Map<string, StackRef[]>
+export type FreeVarsMap = Map<string, ArkStackRef[]>
 
 export class ArkState {
   constructor() {
@@ -44,24 +44,24 @@ export class ArkState {
 
   debug: Map<string, any> = new Map()
 
-  captureFreeVars(cl: Fn): Ref[] {
-    const frame: Ref[] = []
+  captureFreeVars(cl: ArkFn): ArkRef[] {
+    const frame: ArkRef[] = []
     for (const loc of cl.boundFreeVars) {
-      const ref = new ValRef(this.stack.stack[loc.level - 1][0][loc.index])
+      const ref = new ArkValRef(this.stack.stack[loc.level - 1][0][loc.index])
       frame.push(ref)
     }
     return frame
   }
 
-  evaluateArgs(...args: Exp[]) {
-    const evaluatedArgs: Val[] = []
+  evaluateArgs(...args: ArkExp[]) {
+    const evaluatedArgs: ArkVal[] = []
     for (const arg of args) {
       evaluatedArgs.push(arg.eval(this))
     }
     return evaluatedArgs
   }
 
-  run(compiledVal: CompiledArk): Val {
+  run(compiledVal: CompiledArk): ArkVal {
     if (compiledVal.freeVars.size !== 0) {
       throw new ArkRuntimeError(
         `Undefined symbols ${[...compiledVal.freeVars.keys()].join(', ')}`,
@@ -75,32 +75,32 @@ export class ArkState {
 export class ArkRuntimeError extends Error {
   sourceLoc: any
 
-  constructor(public message: string, public val: Val) {
+  constructor(public message: string, public val: ArkVal) {
     super()
     this.sourceLoc = val.debug.get('sourceLoc')
   }
 }
 
 // Base class for compiled code.
-export class Val {
+export class ArkVal {
   static nextId = 0
 
   constructor() {
-    this.debug.set('uid', Val.nextId)
-    Val.nextId += 1
+    this.debug.set('uid', ArkVal.nextId)
+    ArkVal.nextId += 1
   }
 
   debug: Map<string, any> = new Map()
 }
 
-export class Exp extends Val {
-  eval(_ark: ArkState): Val {
+export class ArkExp extends ArkVal {
+  eval(_ark: ArkState): ArkVal {
     return this
   }
 }
 
 // ConcreteVal is used for both literals and values.
-export class ConcreteVal<T> extends Exp {
+export class ArkConcreteVal<T> extends ArkExp {
   constructor(public val: T) {
     super()
   }
@@ -111,17 +111,17 @@ class ConcreteInterned {
     throw new Error('use ConcreteInterned.create, not constructor')
   }
 
-  private static intern: Map<any, WeakRef<ConcreteVal<any>>> = new Map()
+  private static intern: Map<any, WeakRef<ArkConcreteVal<any>>> = new Map()
 
   private static registry: FinalizationRegistry<any> = new FinalizationRegistry(
     (key) => this.intern.delete(key),
   )
 
-  static value<T>(rawVal: T): ConcreteVal<T> {
+  static value<T>(rawVal: T): ArkConcreteVal<T> {
     let ref = ConcreteInterned.intern.get(rawVal)
-    let val: ConcreteVal<T>
+    let val: ArkConcreteVal<T>
     if (ref === undefined || ref.deref() === undefined) {
-      val = new ConcreteVal(rawVal)
+      val = new ArkConcreteVal(rawVal)
       ref = new WeakRef(val)
       ConcreteInterned.intern.set(rawVal, ref)
       ConcreteInterned.registry.register(val, rawVal, val)
@@ -132,51 +132,51 @@ class ConcreteInterned {
   }
 }
 
-export const Undefined = new Val()
-Undefined.debug.set('name', 'Undefined')
-export const Null = () => ConcreteInterned.value(null)
-export const Bool = (b: boolean) => ConcreteInterned.value(b)
-export const Num = (n: number) => ConcreteInterned.value(n)
-export const Str = (s: string) => ConcreteInterned.value(s)
+export const ArkUndefined = new ArkVal()
+ArkUndefined.debug.set('name', 'Undefined')
+export const ArkNull = () => ConcreteInterned.value(null)
+export const ArkBoolean = (b: boolean) => ConcreteInterned.value(b)
+export const ArkNumber = (n: number) => ConcreteInterned.value(n)
+export const ArkString = (s: string) => ConcreteInterned.value(s)
 
-export class NonLocalReturn extends Error {
-  constructor(public readonly val: Val = Null()) {
+export class ArkNonLocalReturn extends Error {
+  constructor(public readonly val: ArkVal = ArkNull()) {
     super()
   }
 }
 
-export class BreakException extends NonLocalReturn {}
+export class ArkBreakException extends ArkNonLocalReturn {}
 
-export class ReturnException extends NonLocalReturn {}
+export class ArkReturnException extends ArkNonLocalReturn {}
 
-export class ContinueException extends NonLocalReturn {}
+export class ArkContinueException extends ArkNonLocalReturn {}
 
-export function bindArgsToParams(params: string[], args: Val[]): Ref[] {
-  const frame: ValRef[] = params.map(
-    (_key, index) => new ValRef(args[index] ?? Undefined),
+function bindArgsToParams(params: string[], args: ArkVal[]): ArkRef[] {
+  const frame: ArkValRef[] = params.map(
+    (_key, index) => new ArkValRef(args[index] ?? ArkUndefined),
   )
   if (args.length > params.length) {
     // FIXME: Support '...' as an identifier
-    frame.push(new ValRef(new List(args.slice(params.length))))
+    frame.push(new ArkValRef(new ArkList(args.slice(params.length))))
   }
   return frame
 }
 
-class FnClosure extends Exp {
-  constructor(public params: string[], public freeVars: Ref[], public body: Exp) {
+class ArkClosure extends ArkExp {
+  constructor(public params: string[], public freeVars: ArkRef[], public body: ArkExp) {
     super()
   }
 
-  call(ark: ArkState, ...args: Exp[]): Val {
+  call(ark: ArkState, ...args: ArkExp[]): ArkVal {
     const evaledArgs = ark.evaluateArgs(...args)
-    let res: Val = Null()
+    let res: ArkVal = ArkNull()
     try {
       const frame = bindArgsToParams(this.params, evaledArgs)
       ark.stack.pushFrame([frame, this.freeVars])
       res = this.body.eval(ark)
       ark.stack.popFrame()
     } catch (e) {
-      if (!(e instanceof ReturnException)) {
+      if (!(e instanceof ArkReturnException)) {
         throw e
       }
       res = e.val
@@ -185,39 +185,39 @@ class FnClosure extends Exp {
   }
 }
 
-export class Fn extends Exp {
-  constructor(public params: string[], public boundFreeVars: StackRef[], public body: Exp) {
+export class ArkFn extends ArkExp {
+  constructor(public params: string[], public boundFreeVars: ArkStackRef[], public body: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
-    return new FnClosure(this.params, ark.captureFreeVars(this), this.body)
+  eval(ark: ArkState): ArkVal {
+    return new ArkClosure(this.params, ark.captureFreeVars(this), this.body)
   }
 }
 
-export class NativeFn extends Exp {
-  constructor(public body: (ark: ArkState, ...args: Val[]) => Val) {
+export class NativeFn extends ArkExp {
+  constructor(public body: (ark: ArkState, ...args: ArkVal[]) => ArkVal) {
     super()
   }
 
-  call(ark: ArkState, ...args: Exp[]) {
+  call(ark: ArkState, ...args: ArkExp[]) {
     return this.body(ark, ...ark.evaluateArgs(...args))
   }
 }
 
-export class Call extends Exp {
-  constructor(public fn: Exp, public args: Exp[]) {
+export class ArkCall extends ArkExp {
+  constructor(public fn: ArkExp, public args: ArkExp[]) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const fn = this.fn
-    let sym: Ref | undefined
-    if (fn instanceof Get && fn.val instanceof Ref) {
+    let sym: ArkRef | undefined
+    if (fn instanceof ArkGet && fn.val instanceof ArkRef) {
       sym = fn.val
     }
     const fnVal = fn.eval(ark)
-    if (!(fnVal instanceof FnClosure || fnVal instanceof NativeFn)) {
+    if (!(fnVal instanceof ArkClosure || fnVal instanceof NativeFn)) {
       throw new ArkRuntimeError('Invalid call', this)
     }
     const callStack = ark.debug.get('callStack')
@@ -232,86 +232,86 @@ export class Call extends Exp {
   }
 }
 
-export abstract class Ref extends Val {
-  abstract get(stack: RuntimeStack): Val
+export abstract class ArkRef extends ArkVal {
+  abstract get(stack: RuntimeStack): ArkVal
 
-  abstract set(stack: RuntimeStack, val: Val): Val
+  abstract set(stack: RuntimeStack, val: ArkVal): ArkVal
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     return this.get(ark.stack)
   }
 }
 
-export class ValRef extends Ref {
-  constructor(public val: Val = Null()) {
+export class ArkValRef extends ArkRef {
+  constructor(public val: ArkVal = ArkNull()) {
     super()
   }
 
-  get(_stack: RuntimeStack): Val {
+  get(_stack: RuntimeStack): ArkVal {
     return this.val
   }
 
-  set(_stack: RuntimeStack, val: Val): Val {
+  set(_stack: RuntimeStack, val: ArkVal): ArkVal {
     this.val = val
     return val
   }
 }
 
-export class StackRef extends Ref {
+export class ArkStackRef extends ArkRef {
   constructor(public level: number, public index: number) {
     super()
   }
 
-  get(stack: RuntimeStack): Val {
+  get(stack: RuntimeStack): ArkVal {
     return stack.stack[this.level][0][this.index]
   }
 
-  set(stack: RuntimeStack, val: Val) {
+  set(stack: RuntimeStack, val: ArkVal) {
     stack.stack[this.level][0][this.index] = val
     return val
   }
 }
 
-export class CaptureRef extends Ref {
+export class ArkCaptureRef extends ArkRef {
   constructor(public index: number) {
     super()
   }
 
-  get(stack: RuntimeStack): Val {
+  get(stack: RuntimeStack): ArkVal {
     return stack.stack[0][1][this.index].get(stack)
   }
 
-  set(stack: RuntimeStack, val: Val) {
+  set(stack: RuntimeStack, val: ArkVal) {
     const ref = stack.stack[0][1][this.index]
     ref.set(stack, val)
     return val
   }
 }
 
-export class Get extends Exp {
-  constructor(public val: Exp) {
+export class ArkGet extends ArkExp {
+  constructor(public val: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
-    const ref = (this.val.eval(ark) as Ref)
+  eval(ark: ArkState): ArkVal {
+    const ref = (this.val.eval(ark) as ArkRef)
     const val = ref.get(ark.stack)
-    if (val === Undefined) {
+    if (val === ArkUndefined) {
       throw new ArkRuntimeError(`Uninitialized symbol ${this.val.debug.get('name')}`, this)
     }
     return val
   }
 }
 
-export class Ass extends Exp {
-  constructor(public ref: Exp, public val: Exp) {
+export class ArkSet extends ArkExp {
+  constructor(public ref: ArkExp, public val: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const ref = this.ref.eval(ark)
     const res = this.val.eval(ark)
-    if (!(ref instanceof Ref)) {
+    if (!(ref instanceof ArkRef)) {
       throw new ArkRuntimeError('Invalid assignment', this)
     }
     ref.set(ark.stack, res)
@@ -319,46 +319,46 @@ export class Ass extends Exp {
   }
 }
 
-export class Class extends Val {
-  public val: Map<string, Val>
+export class ArkClass extends ArkVal {
+  public val: Map<string, ArkVal>
 
-  constructor(obj: Map<string, Val>) {
+  constructor(obj: Map<string, ArkVal>) {
     super()
     this.val = obj
   }
 
-  get(prop: string): Val | undefined {
+  get(prop: string): ArkVal | undefined {
     return this.val.get(prop)
   }
 
-  set(prop: string, val: Val) {
+  set(prop: string, val: ArkVal) {
     this.val.set(prop, val)
     return val
   }
 }
 
-export class Obj extends Class {}
+export class ArkObject extends ArkClass {}
 
-export class ObjLiteral extends Exp {
-  constructor(public val: Map<string, Exp>) {
+export class ArkObjectLiteral extends ArkExp {
+  constructor(public val: Map<string, ArkExp>) {
     super()
   }
 
-  eval(ark: ArkState): Val {
-    const inits = new Map<string, Val>()
+  eval(ark: ArkState): ArkVal {
+    const inits = new Map<string, ArkVal>()
     for (const [k, v] of this.val) {
       inits.set(k, v.eval(ark))
     }
-    return new Obj(inits)
+    return new ArkObject(inits)
   }
 }
 
-export class NativeObj extends Val {
+export class NativeObject extends ArkVal {
   constructor(public obj: Object) {
     super()
   }
 
-  get(prop: string): Val | undefined {
+  get(prop: string): ArkVal | undefined {
     try {
       return fromJs((this.obj as any)[prop], this.obj)
     } catch (e) {
@@ -369,97 +369,97 @@ export class NativeObj extends Val {
     }
   }
 
-  set(prop: string, val: Val) {
+  set(prop: string, val: ArkVal) {
     (this.obj as any)[prop] = toJs(val)
     return val
   }
 }
 
-export class Prop extends Val {
-  constructor(public prop: string, public obj: Exp) {
+export class ArkProperty extends ArkVal {
+  constructor(public prop: string, public obj: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const obj = this.obj.eval(ark)
-    return new PropRef(obj as Obj, this.prop)
+    return new ArkPropertyRef(obj as ArkObject, this.prop)
   }
 }
 
-export class PropRef extends Ref {
-  constructor(public obj: Obj, public prop: string) {
+export class ArkPropertyRef extends ArkRef {
+  constructor(public obj: ArkObject, public prop: string) {
     super()
   }
 
   get(_stack: RuntimeStack) {
-    return this.obj.get(this.prop) ?? Null()
+    return this.obj.get(this.prop) ?? ArkNull()
   }
 
-  set(_stack: RuntimeStack, val: Val) {
+  set(_stack: RuntimeStack, val: ArkVal) {
     this.obj.set(this.prop, val)
     return val
   }
 }
 
-export class Dict extends Class {
-  constructor(public map: Map<Val, Val>) {
+export class ArkMap extends ArkClass {
+  constructor(public map: Map<ArkVal, ArkVal>) {
     super(new Namespace([
       ['set', new NativeFn(
-        (_ark: ArkState, index: Val, val: Val) => {
+        (_ark: ArkState, index: ArkVal, val: ArkVal) => {
           this.map.set(index, val)
           return val
         },
       )],
-      ['get', new NativeFn((_ark: ArkState, index: Val) => this.map.get(index) ?? Null())],
+      ['get', new NativeFn((_ark: ArkState, index: ArkVal) => this.map.get(index) ?? ArkNull())],
     ]))
   }
 }
 
-export class DictLiteral extends Exp {
-  constructor(public map: Map<Exp, Exp>) {
+export class ArkMapLiteral extends ArkExp {
+  constructor(public map: Map<ArkExp, ArkExp>) {
     super()
   }
 
-  eval(ark: ArkState): Val {
-    const evaluatedMap = new Map<any, Val>()
+  eval(ark: ArkState): ArkVal {
+    const evaluatedMap = new Map<any, ArkVal>()
     for (const [k, v] of this.map) {
       evaluatedMap.set(k.eval(ark), v.eval(ark))
     }
-    return new Dict(evaluatedMap)
+    return new ArkMap(evaluatedMap)
   }
 }
 
-export class List extends Class {
-  constructor(public list: Val[]) {
+export class ArkList extends ArkClass {
+  constructor(public list: ArkVal[]) {
     super(new Namespace([
-      ['get', new NativeFn((_ark: ArkState, index: Val) => this.list[toJs(index)])],
+      ['get', new NativeFn((_ark: ArkState, index: ArkVal) => this.list[toJs(index)])],
       ['set', new NativeFn(
-        (_ark: ArkState, index: Val, val: Val) => {
+        (_ark: ArkState, index: ArkVal, val: ArkVal) => {
           this.list[toJs(index)] = val
           return val
         },
       )],
     ]))
-    this.val.set('length', Num(this.list.length))
+    this.val.set('length', ArkNumber(this.list.length))
   }
 }
 
-export class ListLiteral extends Exp {
-  constructor(public list: Exp[]) {
+export class ArkListLiteral extends ArkExp {
+  constructor(public list: ArkExp[]) {
     super()
   }
 
-  eval(ark: ArkState): Val {
-    return new List(this.list.map((e) => e.eval(ark)))
+  eval(ark: ArkState): ArkVal {
+    return new ArkList(this.list.map((e) => e.eval(ark)))
   }
 }
 
-export class Let extends Exp {
-  constructor(public boundVars: string[], public body: Exp) {
+export class ArkLet extends ArkExp {
+  constructor(public boundVars: string[], public body: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const lets = bindArgsToParams(this.boundVars, [])
     ark.stack.push(lets)
     const res = this.body.eval(ark)
@@ -468,13 +468,13 @@ export class Let extends Exp {
   }
 }
 
-export class Seq extends Exp {
-  constructor(public exps: Exp[]) {
+export class ArkSequence extends ArkExp {
+  constructor(public exps: ArkExp[]) {
     super()
   }
 
-  eval(ark: ArkState): Val {
-    let res: Val = Null()
+  eval(ark: ArkState): ArkVal {
+    let res: ArkVal = ArkNull()
     for (const exp of this.exps) {
       res = exp.eval(ark)
     }
@@ -482,26 +482,26 @@ export class Seq extends Exp {
   }
 }
 
-export class If extends Exp {
-  constructor(public cond: Exp, public thenExp: Exp, public elseExp?: Exp) {
+export class ArkIf extends ArkExp {
+  constructor(public cond: ArkExp, public thenExp: ArkExp, public elseExp?: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const condVal = this.cond.eval(ark)
     if (toJs(condVal)) {
       return this.thenExp.eval(ark)
     }
-    return this.elseExp ? this.elseExp.eval(ark) : Null()
+    return this.elseExp ? this.elseExp.eval(ark) : ArkNull()
   }
 }
 
-export class ArkAnd extends Exp {
-  constructor(public left: Exp, public right: Exp) {
+export class ArkAnd extends ArkExp {
+  constructor(public left: ArkExp, public right: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const leftVal = this.left.eval(ark)
     if (toJs(leftVal)) {
       return this.right.eval(ark)
@@ -510,12 +510,12 @@ export class ArkAnd extends Exp {
   }
 }
 
-export class ArkOr extends Exp {
-  constructor(public left: Exp, public right: Exp) {
+export class ArkOr extends ArkExp {
+  constructor(public left: ArkExp, public right: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     const leftVal = this.left.eval(ark)
     if (toJs(leftVal)) {
       return leftVal
@@ -524,20 +524,20 @@ export class ArkOr extends Exp {
   }
 }
 
-export class Loop extends Exp {
-  constructor(public body: Exp) {
+export class ArkLoop extends ArkExp {
+  constructor(public body: ArkExp) {
     super()
   }
 
-  eval(ark: ArkState): Val {
+  eval(ark: ArkState): ArkVal {
     for (; ;) {
       try {
         this.body.eval(ark)
       } catch (e) {
-        if (e instanceof BreakException) {
+        if (e instanceof ArkBreakException) {
           return e.val
         }
-        if (!(e instanceof ContinueException)) {
+        if (!(e instanceof ArkContinueException)) {
           throw e
         }
       }
@@ -546,51 +546,51 @@ export class Loop extends Exp {
 }
 
 export const intrinsics = new Namespace([
-  ['pos', new NativeFn((_ark: ArkState, val: Val) => Num(+toJs(val)))],
-  ['neg', new NativeFn((_ark: ArkState, val: Val) => Num(-toJs(val)))],
-  ['not', new NativeFn((_ark: ArkState, val: Val) => Bool(!toJs(val)))],
-  ['~', new NativeFn((_ark: ArkState, val: Val) => Num(~toJs(val)))],
-  ['break', new NativeFn((_ark: ArkState, val: Val) => {
-    throw new BreakException(val)
+  ['pos', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(+toJs(val)))],
+  ['neg', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(-toJs(val)))],
+  ['not', new NativeFn((_ark: ArkState, val: ArkVal) => ArkBoolean(!toJs(val)))],
+  ['~', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(~toJs(val)))],
+  ['break', new NativeFn((_ark: ArkState, val: ArkVal) => {
+    throw new ArkBreakException(val)
   })],
   ['continue', new NativeFn(() => {
-    throw new ContinueException()
+    throw new ArkContinueException()
   })],
-  ['return', new NativeFn((_ark: ArkState, val: Val) => {
-    throw new ReturnException(val)
+  ['return', new NativeFn((_ark: ArkState, val: ArkVal) => {
+    throw new ArkReturnException(val)
   })],
-  ['=', new NativeFn((_ark: ArkState, left: Val, right: Val) => Bool(toJs(left) === toJs(right)))],
-  ['!=', new NativeFn((_ark: ArkState, left: Val, right: Val) => Bool(toJs(left) !== toJs(right)))],
-  ['<', new NativeFn((_ark: ArkState, left: Val, right: Val) => Bool(toJs(left) < toJs(right)))],
-  ['<=', new NativeFn((_ark: ArkState, left: Val, right: Val) => Bool(toJs(left) <= toJs(right)))],
-  ['>', new NativeFn((_ark: ArkState, left: Val, right: Val) => Bool(toJs(left) > toJs(right)))],
-  ['>=', new NativeFn((_ark: ArkState, left: Val, right: Val) => Bool(toJs(left) >= toJs(right)))],
-  ['+', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) + toJs(right)))],
-  ['-', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) - toJs(right)))],
-  ['*', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) * toJs(right)))],
-  ['/', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) / toJs(right)))],
-  ['%', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) % toJs(right)))],
-  ['**', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) ** toJs(right)))],
-  ['&', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) & toJs(right)))],
-  ['|', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) | toJs(right)))],
-  ['^', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) ^ toJs(right)))],
-  ['<<', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) << toJs(right)))],
-  ['>>', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) >> toJs(right)))],
-  ['>>>', new NativeFn((_ark: ArkState, left: Val, right: Val) => Num(toJs(left) >>> toJs(right)))],
+  ['=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) === toJs(right)))],
+  ['!=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) !== toJs(right)))],
+  ['<', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) < toJs(right)))],
+  ['<=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) <= toJs(right)))],
+  ['>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) > toJs(right)))],
+  ['>=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) >= toJs(right)))],
+  ['+', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) + toJs(right)))],
+  ['-', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) - toJs(right)))],
+  ['*', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) * toJs(right)))],
+  ['/', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) / toJs(right)))],
+  ['%', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) % toJs(right)))],
+  ['**', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) ** toJs(right)))],
+  ['&', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) & toJs(right)))],
+  ['|', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) | toJs(right)))],
+  ['^', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) ^ toJs(right)))],
+  ['<<', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) << toJs(right)))],
+  ['>>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >> toJs(right)))],
+  ['>>>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >>> toJs(right)))],
 ])
 
 export const globals = new Map([
-  ['pi', new ValRef(Num(Math.PI))],
-  ['e', new ValRef(Num(Math.E))],
-  ['print', new ValRef(new NativeFn((_ark: ArkState, obj: Val) => {
+  ['pi', new ArkValRef(ArkNumber(Math.PI))],
+  ['e', new ArkValRef(ArkNumber(Math.E))],
+  ['print', new ArkValRef(new NativeFn((_ark: ArkState, obj: ArkVal) => {
     console.log(toJs(obj))
-    return Null()
+    return ArkNull()
   }))],
-  ['debug', new ValRef(new NativeFn((_ark: ArkState, obj: Val) => {
+  ['debug', new ArkValRef(new NativeFn((_ark: ArkState, obj: ArkVal) => {
     debug(obj)
-    return Null()
+    return ArkNull()
   }))],
-  ['fs', new ValRef(new NativeObj(fs))],
+  ['fs', new ArkValRef(new NativeObject(fs))],
   // ['js', new ValRef(new Obj(new Map([[
   //   'use', new NativeFn('js', async (_ark: ArkState, ...args: Val[]) => {
   //     const importPath = (args.map(toJs).join('.'))
@@ -603,16 +603,16 @@ export const globals = new Map([
   //     return new Obj(wrappedModule)
   //   }),
   // ]])))],
-  ['JSON', new ValRef(new NativeObj(JSON))],
-  ['process', new ValRef(new NativeObj(process))],
-  ['RegExp', new ValRef(new NativeFn((_ark: ArkState, regex: Val, options: Val) => new NativeObj(new RegExp(
-    (regex as ConcreteVal<string>).val,
-    ((options ?? Str('')) as ConcreteVal<string>).val,
+  ['JSON', new ArkValRef(new NativeObject(JSON))],
+  ['process', new ArkValRef(new NativeObject(process))],
+  ['RegExp', new ArkValRef(new NativeFn((_ark: ArkState, regex: ArkVal, options: ArkVal) => new NativeObject(new RegExp(
+    (regex as ArkConcreteVal<string>).val,
+    ((options ?? ArkString('')) as ArkConcreteVal<string>).val,
   )))),
   ],
 ])
 if (globalThis.document !== undefined) {
-  globals.set('document', new ValRef(new NativeObj(globalThis.document)))
+  globals.set('document', new ArkValRef(new NativeObject(globalThis.document)))
 }
 
 export function debug(x: any, depth: number | null = 1) {

@@ -1,59 +1,59 @@
 import {
-  ArkState, Bool, ConcreteVal, Dict, DictLiteral, List, ListLiteral,
-  NativeFn, NativeObj, Null, Num, Obj, Str, Val,
+  ArkState, ArkBoolean, ArkConcreteVal, ArkMap, ArkMapLiteral, ArkList, ArkListLiteral,
+  NativeFn, NativeObject, ArkNull, ArkNumber, ArkObject, ArkString, ArkVal,
 } from './interp.js'
 
 export class ArkFromJsError extends Error {}
 
-export function fromJs(x: any, thisObj?: Object): Val {
+export function fromJs(x: any, thisObj?: Object): ArkVal {
   if (x === null || x === undefined) {
-    return Null()
+    return ArkNull()
   }
   if (typeof x === 'boolean') {
-    return Bool(x)
+    return ArkBoolean(x)
   }
   if (typeof x === 'number') {
-    return Num(x)
+    return ArkNumber(x)
   }
   if (typeof x === 'string') {
-    return Str(x)
+    return ArkString(x)
   }
   if (typeof x === 'function') {
     const fn = thisObj ? x.bind(thisObj) : x
     const nativeFn = new NativeFn(
-      (_ark: ArkState, ...args: Val[]) => fromJs(fn(...args.map(toJs))),
+      (_ark: ArkState, ...args: ArkVal[]) => fromJs(fn(...args.map(toJs))),
     )
     nativeFn.debug.set('name', x.name)
     return nativeFn
   }
   if (x instanceof Array) {
-    return new ListLiteral(x)
+    return new ArkListLiteral(x)
   }
   if (x instanceof Map) {
-    return new DictLiteral(x)
+    return new ArkMapLiteral(x)
   }
   if (typeof x === 'object') {
-    return new NativeObj(x)
+    return new NativeObject(x)
   }
   throw new ArkFromJsError(`Cannot convert JavaScript value ${x}`)
 }
 
-export function toJs(val: Val): any {
-  if (val instanceof ConcreteVal) {
+export function toJs(val: ArkVal): any {
+  if (val instanceof ArkConcreteVal) {
     return val.val
-  } else if (val instanceof Obj) {
+  } else if (val instanceof ArkObject) {
     const obj = {}
     for (const [k, v] of val.val) {
       (obj as any)[k] = toJs(v)
     }
     return obj
-  } else if (val instanceof Dict) {
-    const jsMap = new Map<any, Val>()
+  } else if (val instanceof ArkMap) {
+    const jsMap = new Map<any, ArkVal>()
     for (const [k, v] of val.map) {
       jsMap.set(toJs(k), toJs(v))
     }
     return jsMap
-  } else if (val instanceof List) {
+  } else if (val instanceof ArkList) {
     return val.list.map(toJs)
   }
   return val

@@ -3,7 +3,7 @@ import test from 'ava'
 import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   debug,
-  BreakException, ArkState,
+  ArkBreakException, ArkState,
 } from './interp.js'
 import {toJs} from './ffi.js'
 import {compile} from './compiler.js'
@@ -46,7 +46,7 @@ testGroup('Conditionals', [
 ])
 
 test('Bare break', (t) => {
-  const error = t.throws(() => new ArkState().run(compile('["break"]')), {instanceOf: BreakException})
+  const error = t.throws(() => new ArkState().run(compile('["break"]')), {instanceOf: ArkBreakException})
   if (error !== undefined) {
     t.is(toJs(error.val), null)
   }

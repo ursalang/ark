@@ -1,5 +1,6 @@
 import fs from 'fs'
 import assert from 'assert'
+
 import {CompiledArk, Namespace} from './compiler.js'
 import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 

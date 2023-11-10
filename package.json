@@ -29,7 +29,7 @@
   "files": [
     "/lib"
   ],
-  "main": "lib/interp.js",
+  "main": "lib/index.js",
   "scripts": {
     "lint": "eslint . --ext .ts && depcheck",
     "build": "tsc --build",
@@ -57,5 +57,5 @@
     "test"
   ],
   "type": "module",
-  "types": "lib/interp.d.ts"
+  "types": "lib/index.d.ts"
 }

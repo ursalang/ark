@@ -219,7 +219,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
           }
           const compiledRef = doCompile(value[1], env)
           const compiledVal = doCompile(value[2], env)
-          const freeVars = new FreeVars().merge(compiledVal.freeVars).merge(compiledRef.freeVars)
+          const freeVars = new FreeVars(compiledVal.freeVars).merge(compiledRef.freeVars)
           return new CompiledArk(new Ass(compiledRef.value, compiledVal.value), freeVars)
         }
         case 'list': {
@@ -249,7 +249,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
         default: {
           const compiledFn = doCompile(value[0], env)
           const [args, argsFreeVars] = listToVals(env, value.slice(1))
-          const freeVars = new FreeVars().merge(argsFreeVars).merge(compiledFn.freeVars)
+          const freeVars = argsFreeVars.merge(compiledFn.freeVars)
           return new CompiledArk(new Call(compiledFn.value, args), freeVars)
         }
       }

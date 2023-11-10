@@ -5,18 +5,29 @@ import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 
 export class RuntimeStack {
   // Each stack frame consists of a pair of local vars and captures
-  constructor(public stack: [Val[], Ref[]][] = [[[], []]]) {
+  constructor(public readonly stack: [Val[], Ref[]][] = [[[], []]]) {
     assert(stack.length > 0)
   }
 
   push(items: Val[]) {
-    return new (this.constructor as any)(
-      [[[...this.stack[0][0].slice(), ...items], this.stack[0][1]], ...this.stack.slice(1)],
-    )
+    this.stack[0][0].push(...items)
+    return this
+  }
+
+  pop(nItems: number) {
+    for (let i = 0; i < nItems; i += 1) {
+      this.stack.pop()
+    }
   }
 
   pushFrame(frame: [Val[], Ref[]]) {
-    return new (this.constructor as any)([frame, ...this.stack.slice()])
+    this.stack.unshift(frame)
+    return this
+  }
+
+  popFrame() {
+    this.stack.shift()
+    return this
   }
 }
 
@@ -29,7 +40,7 @@ export class ArkState {
     this.debug.set('fnSymStack', [])
   }
 
-  stack = new RuntimeStack()
+  readonly stack = new RuntimeStack()
 
   debug: Map<string, any> = new Map()
 
@@ -167,10 +178,9 @@ class FnClosure extends Val {
     let res: Val = Null()
     try {
       const frame = bindArgsToParams(this.params, args)
-      const oldStack = ark.stack
-      ark.stack = ark.stack.pushFrame([frame, this.freeVars])
+      ark.stack.pushFrame([frame, this.freeVars])
       res = this.body.eval(ark)
-      ark.stack = oldStack
+      ark.stack.popFrame()
     } catch (e) {
       if (!(e instanceof ReturnException)) {
         throw e
@@ -451,10 +461,9 @@ export class Let extends Val {
 
   _eval(ark: ArkState): Val {
     const lets = bindArgsToParams(this.boundVars, [])
-    const oldStack = ark.stack
-    ark.stack = ark.stack.push(lets)
+    ark.stack.push(lets)
     const res = this.body.eval(ark)
-    ark.stack = oldStack
+    ark.stack.pop(lets.length)
     return res
   }
 }

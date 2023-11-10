@@ -1,7 +1,7 @@
 import {
   ArkState, ArkBoolean, ArkConcreteVal, ArkMap, ArkMapLiteral, ArkList, ArkListLiteral,
   NativeFn, NativeObject, ArkNull, ArkNumber, ArkObject, ArkString, ArkVal,
-} from './interp.js'
+} from './interpreter.js'
 
 export class ArkFromJsError extends Error {}
 

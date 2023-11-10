@@ -9,7 +9,7 @@ import {
   ArkGet, ArkSet, ArkRef, ArkValRef, ArkStackRef, ArkCaptureRef,
   ArkListLiteral, ArkObjectLiteral, ArkMapLiteral,
   ArkFn, ArkProperty, ArkLet, ArkCall,
-} from './interp.js'
+} from './interpreter.js'
 
 export class ArkCompilerError extends Error {}
 

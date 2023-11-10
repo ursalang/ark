@@ -4,9 +4,9 @@ import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   debug,
   ArkBreakException, ArkState,
-} from './interp.js'
+} from './interpreter.js'
 import {toJs} from './ffi.js'
-import {compile} from './compiler.js'
+import {compile} from './parser.js'
 
 import {testGroup} from './testutil.js'
 

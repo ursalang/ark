@@ -1,7 +1,7 @@
 import fs from 'fs'
 import test from 'ava'
-import {ArkState, debug} from './interp.js'
-import {compile} from './compiler.js'
+import {ArkState, debug} from './interpreter.js'
+import {compile} from './parser.js'
 import {toJs} from './ffi.js'
 import {serializeVal} from './serialize.js'
 

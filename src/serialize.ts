@@ -1,11 +1,11 @@
-import {PartialCompiledArk} from './compiler.js'
+import {PartialCompiledArk} from './parser.js'
 import {
   ArkVal, ArkValRef, ArkConcreteVal,
   ArkUndefined, ArkNull, ArkSequence,
   ArkAnd, ArkOr, ArkIf, ArkLoop,
   ArkGet, ArkSet, ArkLet, ArkCall, ArkFn,
   NativeObject, ArkObject, ArkList, ArkMap, ArkProperty, ArkPropertyRef,
-} from './interp.js'
+} from './interpreter.js'
 
 function doSerialize(val: ArkVal): any {
   if (val.debug !== undefined) {

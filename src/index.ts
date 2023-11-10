@@ -1,6 +1,6 @@
 // Package exports for Ark
 
-export * from './interp.js'
-export * from './compiler.js'
+export * from './interpreter.js'
+export * from './parser.js'
 export * from './serialize.js'
 export * from './ffi.js'

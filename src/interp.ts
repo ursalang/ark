@@ -36,7 +36,7 @@ export class ArkState {
   captureFreeVars(cl: Fn): Ref[] {
     const frame: Ref[] = []
     for (const loc of cl.boundFreeVars) {
-      const ref = new ValRef(this.stack.pushFrame([[], []]).stack[loc.level][0][loc.index])
+      const ref = new ValRef(this.stack.stack[loc.level - 1][0][loc.index])
       frame.push(ref)
     }
     return frame

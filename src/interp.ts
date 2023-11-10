@@ -35,7 +35,6 @@ export type FreeVarsMap = Map<string, StackRef[]>
 
 export class ArkState {
   constructor() {
-    this.debug.set('sourceStack', [])
     this.debug.set('callStack', [])
     this.debug.set('fnSymStack', [])
   }
@@ -73,8 +72,11 @@ export class ArkState {
 }
 
 export class ArkRuntimeError extends Error {
+  sourceLoc: any
+
   constructor(public message: string, public val: Val) {
     super()
+    this.sourceLoc = val.debug.get('sourceLoc')
   }
 }
 
@@ -89,20 +91,8 @@ export class Val {
 
   debug: Map<string, any> = new Map()
 
-  _eval(_ark: ArkState): Val {
+  eval(_ark: ArkState): Val {
     return this
-  }
-
-  eval(ark: ArkState): Val {
-    const sourceLoc = this.debug.get('source')
-    if (sourceLoc !== undefined) {
-      ark.debug.get('sourceStack').unshift(sourceLoc)
-    }
-    const res = this._eval(ark)
-    if (sourceLoc !== undefined) {
-      ark.debug.get('sourceStack').shift()
-    }
-    return res
   }
 }
 
@@ -196,7 +186,7 @@ export class Fn extends Val {
     super()
   }
 
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     return new FnClosure(this.params, ark.captureFreeVars(this), this.body)
   }
 }
@@ -222,7 +212,7 @@ export class Call extends Val {
     super()
   }
 
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     const fn = this.fn
     let sym: Ref | undefined
     if (fn instanceof Get && fn.val instanceof Ref) {
@@ -305,7 +295,7 @@ export class Get extends Val {
     super()
   }
 
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     const ref = (this.val.eval(ark) as Ref)
     const val = ref.get(ark.stack)
     if (val === Undefined) {
@@ -320,7 +310,7 @@ export class Ass extends Val {
     super()
   }
 
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     const ref = this.ref.eval(ark)
     const res = this.val.eval(ark)
     if (!(ref instanceof Ref)) {
@@ -352,7 +342,7 @@ export class Class extends Val {
 export class Obj extends Class {}
 
 export class ObjLiteral extends Obj {
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     const inits = new Map<string, Val>()
     for (const [k, v] of this.val) {
       inits.set(k, v.eval(ark))
@@ -388,7 +378,7 @@ export class Prop extends Val {
     super()
   }
 
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     const obj = this.obj.eval(ark)
     return new PropRef(obj as Obj, this.prop)
   }
@@ -459,7 +449,7 @@ export class Let extends Val {
     super()
   }
 
-  _eval(ark: ArkState): Val {
+  eval(ark: ArkState): Val {
     const lets = bindArgsToParams(this.boundVars, [])
     ark.stack.push(lets)
     const res = this.body.eval(ark)

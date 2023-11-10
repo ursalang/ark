@@ -1,7 +1,7 @@
 import {PartialCompiledArk} from './compiler.js'
 import {
-  Ass, Call, ConcreteVal, Dict, Fn, Get, Let, List,
-  NativeObj, Null, Obj, Prop, PropRef, Undefined, Val, ValRef,
+  ArkAnd, ArkOr, Ass, Call, ConcreteVal, Dict, Fn, Get, If, Let, List, Loop,
+  NativeObj, Null, Obj, Prop, PropRef, Seq, Undefined, Val, ValRef,
 } from './interp.js'
 
 function doSerialize(val: Val): any {
@@ -55,6 +55,21 @@ function doSerialize(val: Val): any {
     return ['set', doSerialize(val.ref), doSerialize(val.val)]
   } else if (val instanceof Prop) {
     return ['prop', val.prop, doSerialize(val.obj)]
+  } else if (val instanceof Seq) {
+    return ['seq', ...val.exps.map(doSerialize)]
+  } else if (val instanceof If) {
+    return [
+      'if',
+      doSerialize(val.cond),
+      doSerialize(val.thenExp),
+      val.elseExp ? doSerialize(val.elseExp) : undefined,
+    ]
+  } else if (val instanceof ArkAnd) {
+    return ['and', doSerialize(val.left), doSerialize(val.right)]
+  } else if (val instanceof ArkOr) {
+    return ['or', doSerialize(val.left), doSerialize(val.right)]
+  } else if (val instanceof Loop) {
+    return ['and', doSerialize(val.body)]
   } else if (val === Null()) {
     return null
   } else if (val === Undefined) {

@@ -195,16 +195,6 @@ export class Fn extends Exp {
   }
 }
 
-export class NativeFexpr extends Exp {
-  constructor(public body: (ark: ArkState, ...args: Exp[]) => Val) {
-    super()
-  }
-
-  call(ark: ArkState, ...args: Exp[]) {
-    return this.body(ark, ...args)
-  }
-}
-
 export class NativeFn extends Exp {
   constructor(public body: (ark: ArkState, ...args: Val[]) => Val) {
     super()
@@ -227,9 +217,7 @@ export class Call extends Exp {
       sym = fn.val
     }
     const fnVal = fn.eval(ark)
-    if (!(fnVal instanceof FnClosure
-      || fnVal instanceof NativeFexpr
-      || fnVal instanceof NativeFn)) {
+    if (!(fnVal instanceof FnClosure || fnVal instanceof NativeFn)) {
       throw new ArkRuntimeError('Invalid call', this)
     }
     const callStack = ark.debug.get('callStack')
@@ -480,43 +468,71 @@ export class Let extends Exp {
   }
 }
 
-export const intrinsics = new Namespace([
-  ['pos', new NativeFn((_ark: ArkState, val: Val) => Num(+toJs(val)))],
-  ['neg', new NativeFn((_ark: ArkState, val: Val) => Num(-toJs(val)))],
-  ['not', new NativeFn((_ark: ArkState, val: Val) => Bool(!toJs(val)))],
-  ['~', new NativeFn((_ark: ArkState, val: Val) => Num(~toJs(val)))],
-  ['seq', new NativeFexpr((ark: ArkState, ...args: Exp[]) => {
+export class Seq extends Exp {
+  constructor(public exps: Exp[]) {
+    super()
+  }
+
+  eval(ark: ArkState): Val {
     let res: Val = Null()
-    for (const exp of args) {
+    for (const exp of this.exps) {
       res = exp.eval(ark)
     }
     return res
-  })],
-  ['if', new NativeFexpr((ark: ArkState, cond: Exp, e_then: Exp, e_else: Exp) => {
-    const condVal = cond.eval(ark)
+  }
+}
+
+export class If extends Exp {
+  constructor(public cond: Exp, public thenExp: Exp, public elseExp?: Exp) {
+    super()
+  }
+
+  eval(ark: ArkState): Val {
+    const condVal = this.cond.eval(ark)
     if (toJs(condVal)) {
-      return e_then.eval(ark)
+      return this.thenExp.eval(ark)
     }
-    return e_else ? e_else.eval(ark) : Null()
-  })],
-  ['and', new NativeFexpr((ark: ArkState, left: Exp, right: Exp) => {
-    const leftVal = left.eval(ark)
+    return this.elseExp ? this.elseExp.eval(ark) : Null()
+  }
+}
+
+export class ArkAnd extends Exp {
+  constructor(public left: Exp, public right: Exp) {
+    super()
+  }
+
+  eval(ark: ArkState): Val {
+    const leftVal = this.left.eval(ark)
     if (toJs(leftVal)) {
-      return right.eval(ark)
+      return this.right.eval(ark)
     }
     return leftVal
-  })],
-  ['or', new NativeFexpr((ark: ArkState, left: Exp, right: Exp) => {
-    const leftVal = left.eval(ark)
+  }
+}
+
+export class ArkOr extends Exp {
+  constructor(public left: Exp, public right: Exp) {
+    super()
+  }
+
+  eval(ark: ArkState): Val {
+    const leftVal = this.left.eval(ark)
     if (toJs(leftVal)) {
       return leftVal
     }
-    return right.eval(ark)
-  })],
-  ['loop', new NativeFexpr((ark: ArkState, body: Exp) => {
+    return this.right.eval(ark)
+  }
+}
+
+export class Loop extends Exp {
+  constructor(public body: Exp) {
+    super()
+  }
+
+  eval(ark: ArkState): Val {
     for (; ;) {
       try {
-        body.eval(ark)
+        this.body.eval(ark)
       } catch (e) {
         if (e instanceof BreakException) {
           return e.val
@@ -526,7 +542,14 @@ export const intrinsics = new Namespace([
         }
       }
     }
-  })],
+  }
+}
+
+export const intrinsics = new Namespace([
+  ['pos', new NativeFn((_ark: ArkState, val: Val) => Num(+toJs(val)))],
+  ['neg', new NativeFn((_ark: ArkState, val: Val) => Num(-toJs(val)))],
+  ['not', new NativeFn((_ark: ArkState, val: Val) => Bool(!toJs(val)))],
+  ['~', new NativeFn((_ark: ArkState, val: Val) => Num(~toJs(val)))],
   ['break', new NativeFn((_ark: ArkState, val: Val) => {
     throw new BreakException(val)
   })],

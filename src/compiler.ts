@@ -5,8 +5,8 @@ import {
   debug,
   Val, Exp, Ref, CaptureRef, intrinsics, globals,
   Null, Bool, Num, Str, ValRef, StackRef, Ass, Get,
-  ListLiteral, ObjLiteral, DictLiteral,
-  Fn, Prop, Let, Call, ConcreteVal, FreeVarsMap,
+  Seq, ListLiteral, ObjLiteral, DictLiteral,
+  Fn, Prop, Let, Call, ConcreteVal, FreeVarsMap, If, ArkAnd, ArkOr, Loop,
 } from './interp.js'
 
 export class ArkCompilerError extends Error {}
@@ -150,6 +150,7 @@ export class PartialCompiledArk extends CompiledArk {
   }
 }
 
+// FIXME: Swap argument order.
 function doCompile(value: any, env: Environment): CompiledArk {
   if (value === null) {
     return new CompiledArk(Null())
@@ -244,7 +245,50 @@ function doCompile(value: any, env: Environment): CompiledArk {
             return doCompile(value[1], env)
           }
           const [elems, elemsFreeVars] = listToVals(env, value.slice(1))
-          return new CompiledArk(new Call(intrinsics.get('seq')!, elems), elemsFreeVars)
+          return new CompiledArk(new Seq(elems), elemsFreeVars)
+        }
+        case 'if': {
+          if (value.length < 3 || value.length > 4) {
+            throw new ArkCompilerError("Invalid 'if'")
+          }
+          const compiledCond = doCompile(value[1], env)
+          const compiledThen = doCompile(value[2], env)
+          let freeVars = new FreeVars(compiledCond.freeVars).merge(compiledThen.freeVars)
+          let compiledElse
+          if (value.length === 4) {
+            compiledElse = doCompile(value[3], env)
+            freeVars = freeVars.merge(compiledElse.freeVars)
+          }
+          return new CompiledArk(new If(
+            compiledCond.value,
+            compiledThen.value,
+            compiledElse ? compiledElse.value : undefined,
+          ), freeVars)
+        }
+        case 'and': {
+          if (value.length !== 3) {
+            throw new ArkCompilerError("Invalid 'and'")
+          }
+          const compiledLeft = doCompile(value[1], env)
+          const compiledRight = doCompile(value[2], env)
+          const freeVars = new FreeVars(compiledLeft.freeVars).merge(compiledRight.freeVars)
+          return new CompiledArk(new ArkAnd(compiledLeft.value, compiledRight.value), freeVars)
+        }
+        case 'or': {
+          if (value.length !== 3) {
+            throw new ArkCompilerError("Invalid 'or'")
+          }
+          const compiledLeft = doCompile(value[1], env)
+          const compiledRight = doCompile(value[2], env)
+          const freeVars = new FreeVars(compiledLeft.freeVars).merge(compiledRight.freeVars)
+          return new CompiledArk(new ArkOr(compiledLeft.value, compiledRight.value), freeVars)
+        }
+        case 'loop': {
+          if (value.length !== 2) {
+            throw new ArkCompilerError("Invalid 'loop'")
+          }
+          const compiledBody = doCompile(value[1], env)
+          return new CompiledArk(new Loop(compiledBody.value), compiledBody.freeVars)
         }
         default: {
           const compiledFn = doCompile(value[0], env)

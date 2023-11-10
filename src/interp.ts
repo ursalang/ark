@@ -52,7 +52,7 @@ export class ArkState {
     return frame
   }
 
-  evaluateArgs(...args: Val[]) {
+  evaluateArgs(...args: Exp[]) {
     const evaluatedArgs: Val[] = []
     for (const arg of args) {
       evaluatedArgs.push(arg.eval(this))
@@ -90,13 +90,16 @@ export class Val {
   }
 
   debug: Map<string, any> = new Map()
+}
 
+export class Exp extends Val {
   eval(_ark: ArkState): Val {
     return this
   }
 }
 
-export class ConcreteVal<T> extends Val {
+// ConcreteVal is used for both literals and values.
+export class ConcreteVal<T> extends Exp {
   constructor(public val: T) {
     super()
   }
@@ -158,16 +161,16 @@ export function bindArgsToParams(params: string[], args: Val[]): Ref[] {
   return frame
 }
 
-class FnClosure extends Val {
-  constructor(public params: string[], public freeVars: Ref[], public body: Val) {
+class FnClosure extends Exp {
+  constructor(public params: string[], public freeVars: Ref[], public body: Exp) {
     super()
   }
 
-  call(ark: ArkState, ...args: Val[]): Val {
-    args = ark.evaluateArgs(...args)
+  call(ark: ArkState, ...args: Exp[]): Val {
+    const evaledArgs = ark.evaluateArgs(...args)
     let res: Val = Null()
     try {
-      const frame = bindArgsToParams(this.params, args)
+      const frame = bindArgsToParams(this.params, evaledArgs)
       ark.stack.pushFrame([frame, this.freeVars])
       res = this.body.eval(ark)
       ark.stack.popFrame()
@@ -181,8 +184,8 @@ class FnClosure extends Val {
   }
 }
 
-export class Fn extends Val {
-  constructor(public params: string[], public boundFreeVars: StackRef[], public body: Val) {
+export class Fn extends Exp {
+  constructor(public params: string[], public boundFreeVars: StackRef[], public body: Exp) {
     super()
   }
 
@@ -191,24 +194,28 @@ export class Fn extends Val {
   }
 }
 
-export class NativeFexpr extends Val {
-  constructor(public body: (ark: ArkState, ...args: Val[]) => Val) {
+export class NativeFexpr extends Exp {
+  constructor(public body: (ark: ArkState, ...args: Exp[]) => Val) {
     super()
   }
 
-  call(ark: ArkState, ...args: Val[]) {
+  call(ark: ArkState, ...args: Exp[]) {
     return this.body(ark, ...args)
   }
 }
 
-export class NativeFn extends NativeFexpr {
-  call(ark: ArkState, ...args: Val[]) {
+export class NativeFn extends Exp {
+  constructor(public body: (ark: ArkState, ...args: Val[]) => Val) {
+    super()
+  }
+
+  call(ark: ArkState, ...args: Exp[]) {
     return this.body(ark, ...ark.evaluateArgs(...args))
   }
 }
 
-export class Call extends Val {
-  constructor(public fn: Val, public args: Val[]) {
+export class Call extends Exp {
+  constructor(public fn: Exp, public args: Exp[]) {
     super()
   }
 
@@ -219,7 +226,9 @@ export class Call extends Val {
       sym = fn.val
     }
     const fnVal = fn.eval(ark)
-    if (!(fnVal instanceof FnClosure || fnVal instanceof NativeFexpr)) {
+    if (!(fnVal instanceof FnClosure
+      || fnVal instanceof NativeFexpr
+      || fnVal instanceof NativeFn)) {
       throw new ArkRuntimeError('Invalid call', this)
     }
     const callStack = ark.debug.get('callStack')
@@ -290,8 +299,8 @@ export class CaptureRef extends Ref {
   }
 }
 
-export class Get extends Val {
-  constructor(public val: Val) {
+export class Get extends Exp {
+  constructor(public val: Exp) {
     super()
   }
 
@@ -305,8 +314,8 @@ export class Get extends Val {
   }
 }
 
-export class Ass extends Val {
-  constructor(public ref: Val, public val: Val) {
+export class Ass extends Exp {
+  constructor(public ref: Exp, public val: Exp) {
     super()
   }
 
@@ -341,7 +350,11 @@ export class Class extends Val {
 
 export class Obj extends Class {}
 
-export class ObjLiteral extends Obj {
+export class ObjLiteral extends Exp {
+  constructor(public val: Map<string, Exp>) {
+    super()
+  }
+
   eval(ark: ArkState): Val {
     const inits = new Map<string, Val>()
     for (const [k, v] of this.val) {
@@ -374,7 +387,7 @@ export class NativeObj extends Val {
 }
 
 export class Prop extends Val {
-  constructor(public prop: string, public obj: Val) {
+  constructor(public prop: string, public obj: Exp) {
     super()
   }
 
@@ -413,7 +426,11 @@ export class Dict extends Class {
   }
 }
 
-export class DictLiteral extends Dict {
+export class DictLiteral extends Exp {
+  constructor(public map: Map<Exp, Exp>) {
+    super()
+  }
+
   eval(ark: ArkState): Val {
     const evaluatedMap = new Map<any, Val>()
     for (const [k, v] of this.map) {
@@ -438,14 +455,18 @@ export class List extends Class {
   }
 }
 
-export class ListLiteral extends List {
+export class ListLiteral extends Exp {
+  constructor(public list: Exp[]) {
+    super()
+  }
+
   eval(ark: ArkState): Val {
     return new List(this.list.map((e) => e.eval(ark)))
   }
 }
 
-export class Let extends Val {
-  constructor(public boundVars: string[], public body: Val) {
+export class Let extends Exp {
+  constructor(public boundVars: string[], public body: Exp) {
     super()
   }
 
@@ -463,35 +484,35 @@ export const intrinsics = new Namespace([
   ['neg', new NativeFn((_ark: ArkState, val: Val) => Num(-toJs(val)))],
   ['not', new NativeFn((_ark: ArkState, val: Val) => Bool(!toJs(val)))],
   ['~', new NativeFn((_ark: ArkState, val: Val) => Num(~toJs(val)))],
-  ['seq', new NativeFexpr((ark: ArkState, ...args: Val[]) => {
+  ['seq', new NativeFexpr((ark: ArkState, ...args: Exp[]) => {
     let res: Val = Null()
     for (const exp of args) {
       res = exp.eval(ark)
     }
     return res
   })],
-  ['if', new NativeFexpr((ark: ArkState, cond: Val, e_then: Val, e_else: Val) => {
+  ['if', new NativeFexpr((ark: ArkState, cond: Exp, e_then: Exp, e_else: Exp) => {
     const condVal = cond.eval(ark)
     if (toJs(condVal)) {
       return e_then.eval(ark)
     }
     return e_else ? e_else.eval(ark) : Null()
   })],
-  ['and', new NativeFexpr((ark: ArkState, left: Val, right: Val) => {
+  ['and', new NativeFexpr((ark: ArkState, left: Exp, right: Exp) => {
     const leftVal = left.eval(ark)
     if (toJs(leftVal)) {
       return right.eval(ark)
     }
     return leftVal
   })],
-  ['or', new NativeFexpr((ark: ArkState, left: Val, right: Val) => {
+  ['or', new NativeFexpr((ark: ArkState, left: Exp, right: Exp) => {
     const leftVal = left.eval(ark)
     if (toJs(leftVal)) {
       return leftVal
     }
     return right.eval(ark)
   })],
-  ['loop', new NativeFexpr((ark: ArkState, body: Val) => {
+  ['loop', new NativeFexpr((ark: ArkState, body: Exp) => {
     for (; ;) {
       try {
         body.eval(ark)

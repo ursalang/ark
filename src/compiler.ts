@@ -2,16 +2,16 @@ import assert from 'assert'
 import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   debug,
-  Val, intrinsics,
+  Val, Exp, Ref, CaptureRef, intrinsics, globals,
   Null, Bool, Num, Str, ValRef, StackRef, Ass, Get,
   ListLiteral, ObjLiteral, DictLiteral,
-  Fn, Prop, Let, Call, ConcreteVal, globals, FreeVarsMap, CaptureRef, Ref,
+  Fn, Prop, Let, Call, ConcreteVal, FreeVarsMap,
 } from './interp.js'
 
 export class ArkCompilerError extends Error {}
 
-export class Namespace extends Map<string, Val> {
-  constructor(inits: [string, Val][]) {
+export class Namespace extends Map<string, Exp> {
+  constructor(inits: [string, Exp][]) {
     super(inits)
     for (const [name, val] of inits) {
       Namespace.setName(name, val)
@@ -24,7 +24,7 @@ export class Namespace extends Map<string, Val> {
     }
   }
 
-  set(name: string, val: Val) {
+  set(name: string, val: Exp) {
     Namespace.setName(name, val)
     super.set(name, val)
     return this
@@ -104,7 +104,7 @@ export function arkParamList(params: any[]): string[] {
   return checkParamList(paramList)
 }
 
-function listToVals(env: Environment, l: any[]): [Val[], FreeVars] {
+function listToVals(env: Environment, l: any[]): [Exp[], FreeVars] {
   const vals = []
   const freeVars = new FreeVars()
   for (const v of l) {
@@ -136,12 +136,12 @@ export function symRef(env: Environment, name: string): CompiledArk {
 }
 
 export class CompiledArk {
-  constructor(public value: Val, public freeVars: FreeVarsMap = new Map()) {}
+  constructor(public value: Exp, public freeVars: FreeVarsMap = new Map()) {}
 }
 
 export class PartialCompiledArk extends CompiledArk {
   constructor(
-    public value: Val,
+    public value: Exp,
     public freeVars: FreeVarsMap = new Map(),
     public boundVars: string[] = [],
   ) {
@@ -226,7 +226,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
           return new CompiledArk(new ListLiteral(elems), elemsFreeVars)
         }
         case 'map': {
-          const inits = new Map<Val, Val>()
+          const inits = new Map<Exp, Exp>()
           const initsFreeVars = new FreeVars()
           for (const pair of value.slice(1)) {
             assert(pair instanceof Array && pair.length === 2)

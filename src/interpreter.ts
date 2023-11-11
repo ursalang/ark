@@ -42,11 +42,6 @@ export class RuntimeStack {
 export type FreeVarsMap = Map<string, ArkStackRef[]>
 
 export class ArkState {
-  constructor() {
-    this.debug.set('callStack', [])
-    this.debug.set('fnSymStack', [])
-  }
-
   readonly stack = new RuntimeStack()
 
   debug: Map<string, any> = new Map()

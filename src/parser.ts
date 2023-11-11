@@ -17,8 +17,8 @@ import {
 
 export class ArkCompilerError extends Error {}
 
-export class Namespace extends Map<string, ArkExp> {
-  constructor(inits: [string, ArkExp][]) {
+export class Namespace extends Map<string, ArkValRef> {
+  constructor(inits: [string, ArkValRef][]) {
     super(inits)
     for (const [name, val] of inits) {
       Namespace.setName(name, val)
@@ -31,7 +31,7 @@ export class Namespace extends Map<string, ArkExp> {
     }
   }
 
-  set(name: string, val: ArkExp) {
+  set(name: string, val: ArkValRef) {
     Namespace.setName(name, val)
     super.set(name, val)
     return this
@@ -80,7 +80,7 @@ export class Environment {
     }
     if (ref === undefined) {
       if (this.externalSyms.has(sym)) {
-        ref = this.externalSyms.get(sym) as ArkValRef
+        ref = this.externalSyms.get(sym)!
       } else {
         throw new ArkCompilerError(`Undefined symbol ${sym}`)
       }

@@ -405,7 +405,7 @@ export class ArkPropertyRef extends ArkRef {
 
 export class ArkMap extends ArkClass {
   constructor(public map: Map<ArkVal, ArkVal>) {
-    super(new Namespace([
+    super(new Map([
       ['set', new NativeFn(
         (_ark: ArkState, index: ArkVal, val: ArkVal) => {
           this.map.set(index, val)
@@ -433,7 +433,7 @@ export class ArkMapLiteral extends ArkExp {
 
 export class ArkList extends ArkClass {
   constructor(public list: ArkVal[]) {
-    super(new Namespace([
+    super(new Map([
       ['get', new NativeFn((_ark: ArkState, index: ArkVal) => this.list[toJs(index)])],
       ['set', new NativeFn(
         (_ark: ArkState, index: ArkVal, val: ArkVal) => {
@@ -547,7 +547,7 @@ export class ArkLoop extends ArkExp {
   }
 }
 
-export const intrinsics = new Namespace([
+export const intrinsics = new Map([
   ['pos', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(+toJs(val)))],
   ['neg', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(-toJs(val)))],
   ['not', new NativeFn((_ark: ArkState, val: ArkVal) => ArkBoolean(!toJs(val)))],
@@ -581,7 +581,7 @@ export const intrinsics = new Namespace([
   ['>>>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >>> toJs(right)))],
 ])
 
-export const globals = new Map([
+export const globals = new Namespace([
   ['pi', new ArkValRef(ArkNumber(Math.PI))],
   ['e', new ArkValRef(ArkNumber(Math.E))],
   ['print', new ArkValRef(new NativeFn((_ark: ArkState, obj: ArkVal) => {

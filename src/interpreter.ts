@@ -169,22 +169,6 @@ class ArkClosure extends ArkExp {
   constructor(public params: string[], public freeVars: ArkRef[], public body: ArkExp) {
     super()
   }
-
-  call(ark: ArkState, ...args: ArkVal[]): ArkVal {
-    let res: ArkVal = ArkNull()
-    try {
-      const frame = bindArgsToParams(this.params, args)
-      ark.stack.pushFrame([frame, this.freeVars])
-      res = this.body.eval(ark)
-      ark.stack.popFrame()
-    } catch (e) {
-      if (!(e instanceof ArkReturnException)) {
-        throw e
-      }
-      res = e.val
-    }
-    return res
-  }
 }
 
 export class ArkFn extends ArkExp {
@@ -205,10 +189,6 @@ export class ArkFn extends ArkExp {
 export class NativeFn extends ArkExp {
   constructor(public body: (ark: ArkState, ...args: ArkVal[]) => ArkVal) {
     super()
-  }
-
-  call(ark: ArkState, ...args: ArkVal[]) {
-    return this.body(ark, ...args)
   }
 }
 
@@ -235,7 +215,22 @@ export class ArkCall extends ArkExp {
     for (const arg of this.args) {
       evaluatedArgs.push(arg.eval(ark))
     }
-    const res = fnVal.call(ark, ...evaluatedArgs)
+    let res: ArkVal = ArkNull()
+    if (fnVal instanceof NativeFn) {
+      res = fnVal.body(ark, ...evaluatedArgs)
+    } else {
+      try {
+        const frame = bindArgsToParams(fnVal.params, evaluatedArgs)
+        ark.stack.pushFrame([frame, fnVal.freeVars])
+        res = fnVal.body.eval(ark)
+        ark.stack.popFrame()
+      } catch (e) {
+        if (!(e instanceof ArkReturnException)) {
+          throw e
+        }
+        res = e.val
+      }
+    }
     callStack.shift()
     fnSymStack.shift()
     return res

@@ -8,11 +8,12 @@ import assert from 'assert'
 import {CompiledArk, Namespace} from './parser.js'
 import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 
-// Each stack frame consists of a pair of local vars and captures
-type ArkFrame = [ArkRef[], ArkRef[]]
+// Each stack frame consists of a pair of local vars and captures, plus
+// debug info.
+type ArkFrame = [ArkRef[], ArkRef[], Map<string, any>]
 
 export class RuntimeStack {
-  constructor(public readonly stack: ArkFrame[] = [[[], []]]) {
+  constructor(public readonly stack: ArkFrame[] = [[[], [], new Map()]]) {
     assert(stack.length > 0)
   }
 
@@ -207,10 +208,6 @@ export class ArkCall extends ArkExp {
     if (!(fnVal instanceof ArkClosure || fnVal instanceof NativeFn)) {
       throw new ArkRuntimeError('Invalid call', this)
     }
-    const callStack = ark.debug.get('callStack')
-    const fnSymStack = ark.debug.get('fnSymStack')
-    callStack.unshift(this)
-    fnSymStack.unshift(sym)
     const evaluatedArgs = []
     for (const arg of this.args) {
       evaluatedArgs.push(arg.eval(ark))
@@ -221,7 +218,11 @@ export class ArkCall extends ArkExp {
     } else {
       try {
         const frame = bindArgsToParams(fnVal.params, evaluatedArgs)
-        ark.stack.pushFrame([frame, fnVal.freeVars])
+        ark.stack.pushFrame([
+          frame,
+          fnVal.freeVars,
+          new Map<string, any>([['source', this], ['name', sym]]),
+        ])
         res = fnVal.body.eval(ark)
         ark.stack.popFrame()
       } catch (e) {
@@ -231,8 +232,6 @@ export class ArkCall extends ArkExp {
         res = e.val
       }
     }
-    callStack.shift()
-    fnSymStack.shift()
     return res
   }
 }

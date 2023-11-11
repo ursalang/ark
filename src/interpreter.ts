@@ -8,13 +8,15 @@ import assert from 'assert'
 import {CompiledArk, Namespace} from './parser.js'
 import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 
+// Each stack frame consists of a pair of local vars and captures
+type ArkFrame = [ArkRef[], ArkRef[]]
+
 export class RuntimeStack {
-  // Each stack frame consists of a pair of local vars and captures
-  constructor(public readonly stack: [ArkVal[], ArkRef[]][] = [[[], []]]) {
+  constructor(public readonly stack: ArkFrame[] = [[[], []]]) {
     assert(stack.length > 0)
   }
 
-  push(items: ArkVal[]) {
+  push(items: ArkRef[]) {
     this.stack[0][0].push(...items)
     return this
   }
@@ -25,7 +27,7 @@ export class RuntimeStack {
     }
   }
 
-  pushFrame(frame: [ArkVal[], ArkRef[]]) {
+  pushFrame(frame: ArkFrame) {
     this.stack.unshift(frame)
     return this
   }
@@ -51,7 +53,7 @@ export class ArkState {
   captureFreeVars(cl: ArkFn): ArkRef[] {
     const frame: ArkRef[] = []
     for (const loc of cl.boundFreeVars) {
-      const ref = new ArkValRef(this.stack.stack[loc.level - 1][0][loc.index])
+      const ref = this.stack.stack[loc.level - 1][0][loc.index]
       frame.push(ref)
     }
     return frame
@@ -236,14 +238,10 @@ export class ArkCall extends ArkExp {
   }
 }
 
-export abstract class ArkRef extends ArkVal {
+export abstract class ArkRef extends ArkExp {
   abstract get(stack: RuntimeStack): ArkVal
 
   abstract set(stack: RuntimeStack, val: ArkVal): ArkVal
-
-  eval(ark: ArkState): ArkVal {
-    return this.get(ark.stack)
-  }
 }
 
 export class ArkValRef extends ArkRef {
@@ -267,11 +265,11 @@ export class ArkStackRef extends ArkRef {
   }
 
   get(stack: RuntimeStack): ArkVal {
-    return stack.stack[this.level][0][this.index]
+    return stack.stack[this.level][0][this.index].get(stack)
   }
 
   set(stack: RuntimeStack, val: ArkVal) {
-    stack.stack[this.level][0][this.index] = val
+    stack.stack[this.level][0][this.index].set(stack, val)
     return val
   }
 }

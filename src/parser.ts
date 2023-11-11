@@ -80,7 +80,7 @@ export class Environment {
     }
     if (ref === undefined) {
       if (this.externalSyms.has(sym)) {
-        ref = new ArkValRef(this.externalSyms.get(sym))
+        ref = this.externalSyms.get(sym) as ArkValRef
       } else {
         throw new ArkCompilerError(`Undefined symbol ${sym}`)
       }

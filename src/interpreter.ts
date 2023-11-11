@@ -50,15 +50,6 @@ export class ArkState {
 
   debug: Map<string, any> = new Map()
 
-  captureFreeVars(cl: ArkFn): ArkRef[] {
-    const frame: ArkRef[] = []
-    for (const loc of cl.boundFreeVars) {
-      const ref = this.stack.stack[loc.level - 1][0][loc.index]
-      frame.push(ref)
-    }
-    return frame
-  }
-
   run(compiledVal: CompiledArk): ArkVal {
     if (compiledVal.freeVars.size !== 0) {
       throw new ArkRuntimeError(
@@ -202,7 +193,12 @@ export class ArkFn extends ArkExp {
   }
 
   eval(ark: ArkState): ArkVal {
-    return new ArkClosure(this.params, ark.captureFreeVars(this), this.body)
+    const freeVarsFrame: ArkRef[] = []
+    for (const loc of this.boundFreeVars) {
+      const ref = ark.stack.stack[loc.level - 1][0][loc.index]
+      freeVarsFrame.push(ref)
+    }
+    return new ArkClosure(this.params, freeVarsFrame, this.body)
   }
 }
 

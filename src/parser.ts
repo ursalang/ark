@@ -12,7 +12,7 @@ import {
   ArkConcreteVal, ArkNull, ArkBoolean, ArkNumber, ArkString,
   ArkGet, ArkSet, ArkRef, ArkValRef, ArkStackRef, ArkCaptureRef,
   ArkListLiteral, ArkObjectLiteral, ArkMapLiteral,
-  ArkFn, ArkProperty, ArkLet, ArkCall,
+  ArkFn, ArkProperty, ArkLet, ArkCall, ArkLiteral,
 } from './interpreter.js'
 
 export class ArkCompilerError extends Error {}
@@ -139,7 +139,7 @@ export function symRef(env: Environment, name: string): CompiledArk {
     ref = new ArkCaptureRef(k)
     env.stack[0][1].push(name)
   }
-  return new CompiledArk(ref, freeVars)
+  return new CompiledArk(new ArkLiteral(ref), freeVars)
 }
 
 export class CompiledArk {
@@ -159,13 +159,13 @@ export class PartialCompiledArk extends CompiledArk {
 // FIXME: Swap argument order.
 function doCompile(value: any, env: Environment): CompiledArk {
   if (value === null) {
-    return new CompiledArk(ArkNull())
+    return new CompiledArk(new ArkLiteral(ArkNull()))
   }
   if (typeof value === 'boolean') {
-    return new CompiledArk(ArkBoolean(value))
+    return new CompiledArk(new ArkLiteral(ArkBoolean(value)))
   }
   if (typeof value === 'number') {
-    return new CompiledArk(ArkNumber(value))
+    return new CompiledArk(new ArkLiteral(ArkNumber(value)))
   }
   if (typeof value === 'string') {
     return symRef(env, value)
@@ -177,7 +177,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
           if (value.length !== 2 || typeof value[1] !== 'string') {
             throw new ArkCompilerError(`Invalid 'str' ${value}`)
           }
-          return new CompiledArk(ArkString(value[1]))
+          return new CompiledArk(new ArkLiteral(ArkString(value[1])))
         case 'let': {
           if (value.length !== 3) {
             throw new ArkCompilerError("Invalid 'let'")
@@ -211,7 +211,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
             throw new ArkCompilerError("Invalid 'ref'")
           }
           const compiled = doCompile(value[1], env)
-          return new CompiledArk(new ArkValRef(compiled.value), compiled.freeVars)
+          return new CompiledArk(new ArkLiteral(compiled.value), compiled.freeVars)
         }
         case 'get': {
           if (value.length !== 2) {

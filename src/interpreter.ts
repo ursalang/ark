@@ -88,25 +88,39 @@ export class ArkRuntimeError extends Error {
 }
 
 // Base class for compiled code.
-export class ArkVal {
+export class Ark {
   static nextId = 0
 
   constructor() {
-    this.debug.set('uid', ArkVal.nextId)
-    ArkVal.nextId += 1
+    this.debug.set('uid', Ark.nextId)
+    Ark.nextId += 1
   }
 
   debug: Map<string, any> = new Map()
 }
 
-export class ArkExp extends ArkVal {
+export class ArkVal extends Ark {}
+
+export class ArkExp extends Ark {
+  // Make this class incompatible with ArkVal.
+  _arkexp: undefined
+
   eval(_ark: ArkState): ArkVal {
     return this
   }
 }
 
-// ConcreteVal is used for both literals and values.
-export class ArkConcreteVal<T> extends ArkExp {
+export class ArkLiteral extends ArkExp {
+  constructor(public val: ArkVal = ArkNull()) {
+    super()
+  }
+
+  eval(_ark: ArkState): ArkVal {
+    return this.val
+  }
+}
+
+export class ArkConcreteVal<T> extends ArkVal {
   constructor(public val: T) {
     super()
   }
@@ -238,7 +252,7 @@ export class ArkCall extends ArkExp {
   }
 }
 
-export abstract class ArkRef extends ArkExp {
+export abstract class ArkRef extends ArkVal {
   abstract get(stack: RuntimeStack): ArkVal
 
   abstract set(stack: RuntimeStack, val: ArkVal): ArkVal
@@ -377,7 +391,7 @@ export class NativeObject extends ArkVal {
   }
 }
 
-export class ArkProperty extends ArkVal {
+export class ArkProperty extends ArkExp {
   constructor(public prop: string, public obj: ArkExp) {
     super()
   }

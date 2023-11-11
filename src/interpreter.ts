@@ -59,14 +59,6 @@ export class ArkState {
     return frame
   }
 
-  evaluateArgs(...args: ArkExp[]) {
-    const evaluatedArgs: ArkVal[] = []
-    for (const arg of args) {
-      evaluatedArgs.push(arg.eval(this))
-    }
-    return evaluatedArgs
-  }
-
   run(compiledVal: CompiledArk): ArkVal {
     if (compiledVal.freeVars.size !== 0) {
       throw new ArkRuntimeError(
@@ -187,11 +179,10 @@ class ArkClosure extends ArkExp {
     super()
   }
 
-  call(ark: ArkState, ...args: ArkExp[]): ArkVal {
-    const evaledArgs = ark.evaluateArgs(...args)
+  call(ark: ArkState, ...args: ArkVal[]): ArkVal {
     let res: ArkVal = ArkNull()
     try {
-      const frame = bindArgsToParams(this.params, evaledArgs)
+      const frame = bindArgsToParams(this.params, args)
       ark.stack.pushFrame([frame, this.freeVars])
       res = this.body.eval(ark)
       ark.stack.popFrame()
@@ -220,8 +211,8 @@ export class NativeFn extends ArkExp {
     super()
   }
 
-  call(ark: ArkState, ...args: ArkExp[]) {
-    return this.body(ark, ...ark.evaluateArgs(...args))
+  call(ark: ArkState, ...args: ArkVal[]) {
+    return this.body(ark, ...args)
   }
 }
 
@@ -244,8 +235,11 @@ export class ArkCall extends ArkExp {
     const fnSymStack = ark.debug.get('fnSymStack')
     callStack.unshift(this)
     fnSymStack.unshift(sym)
-    const args = this.args
-    const res = fnVal.call(ark, ...args)
+    const evaluatedArgs = []
+    for (const arg of this.args) {
+      evaluatedArgs.push(arg.eval(ark))
+    }
+    const res = fnVal.call(ark, ...evaluatedArgs)
     callStack.shift()
     fnSymStack.shift()
     return res

@@ -24,7 +24,7 @@ export class RuntimeStack {
 
   pop(nItems: number) {
     for (let i = 0; i < nItems; i += 1) {
-      this.stack.pop()
+      this.stack[0][0].pop()
     }
   }
 

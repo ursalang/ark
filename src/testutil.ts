@@ -7,7 +7,7 @@ import test from 'ava'
 import {ArkState, debug} from './interpreter.js'
 import {compile} from './parser.js'
 import {toJs} from './ffi.js'
-import {serializeVal} from './serialize.js'
+import {valToJs} from './serialize.js'
 
 function doCompile(source: string) {
   const compiled = compile(source)
@@ -34,6 +34,7 @@ export function cliTest(title: string, file: string) {
     const source = fs.readFileSync(`${file}.json`, {encoding: 'utf-8'})
     const expected = fs.readFileSync(`${file}.result.json`, {encoding: 'utf-8'})
     const compiled = doCompile(source)
-    t.deepEqual(serializeVal(new ArkState().run(compiled)), expected)
+    t.deepEqual(valToJs(compiled.value), JSON.parse(source))
+    t.deepEqual(valToJs(new ArkState().run(compiled)), JSON.parse(expected))
   })
 }

@@ -13,7 +13,7 @@ import {
   ArkStackRef, ArkCaptureRef, FreeVarsMap,
 } from './interpreter.js'
 
-function doSerialize(val: ArkVal): any {
+export function valToJs(val: ArkVal): any {
   if (val.debug !== undefined) {
     const name = val.debug.get('name')
     if (name !== undefined) {
@@ -27,54 +27,57 @@ function doSerialize(val: ArkVal): any {
     }
     return val.val
   } else if (val instanceof ArkLiteral) {
-    return doSerialize(val.val)
+    return valToJs(val.val)
   } else if (val instanceof ArkPropertyRef) {
-    return ['ref', ['prop', doSerialize(val.obj), val.prop]]
+    return ['ref', ['prop', valToJs(val.obj), val.prop]]
   } else if (val instanceof ArkStackRef || val instanceof ArkCaptureRef) {
     return 'foo'
   } else if (val instanceof ArkValRef) {
-    return ['ref', doSerialize(val.val)]
+    return ['ref', valToJs(val.val)]
   } else if (val instanceof ArkGet) {
-    return ['get', doSerialize(val.val)]
+    return ['get', valToJs(val.val)]
   } else if (val instanceof ArkFn) {
-    return ['fn', ['params', ...val.params], doSerialize(val.body)]
+    return ['fn', ['params', ...val.params], valToJs(val.body)]
   } else if (val instanceof ArkObject || val instanceof ArkObjectLiteral) {
     const obj = {}
     for (const [k, v] of val.val) {
-      (obj as any)[k] = doSerialize(v)
+      (obj as any)[k] = valToJs(v)
     }
     return obj
   } else if (val instanceof ArkList || val instanceof ArkListLiteral) {
-    return ['list', ...val.list.map(doSerialize)]
+    return ['list', ...val.list.map(valToJs)]
   } else if (val instanceof ArkMap || val instanceof ArkMapLiteral) {
     const obj: any[] = ['map']
     for (const [k, v] of val.map) {
-      obj.push([doSerialize(k), doSerialize(v)])
+      obj.push([valToJs(k), valToJs(v)])
     }
     return obj
   } else if (val instanceof ArkLet) {
-    return ['let', ['params', ...val.boundVars], doSerialize(val.body)]
+    return ['let', ['params', ...val.boundVars], valToJs(val.body)]
   } else if (val instanceof ArkCall) {
-    return [doSerialize(val.fn), ...val.args.map(doSerialize)]
+    return [valToJs(val.fn), ...val.args.map(valToJs)]
   } else if (val instanceof ArkSet) {
-    return ['set', doSerialize(val.ref), doSerialize(val.val)]
+    return ['set', valToJs(val.ref), valToJs(val.val)]
   } else if (val instanceof ArkProperty) {
-    return ['prop', val.prop, doSerialize(val.obj)]
+    return ['prop', val.prop, valToJs(val.obj)]
   } else if (val instanceof ArkSequence) {
-    return ['seq', ...val.exps.map(doSerialize)]
+    return ['seq', ...val.exps.map(valToJs)]
   } else if (val instanceof ArkIf) {
-    return [
+    const res = [
       'if',
-      doSerialize(val.cond),
-      doSerialize(val.thenExp),
-      val.elseExp ? doSerialize(val.elseExp) : undefined,
+      valToJs(val.cond),
+      valToJs(val.thenExp),
     ]
+    if (val.elseExp !== undefined) {
+      res.push(valToJs(val.elseExp))
+    }
+    return res
   } else if (val instanceof ArkAnd) {
-    return ['and', doSerialize(val.left), doSerialize(val.right)]
+    return ['and', valToJs(val.left), valToJs(val.right)]
   } else if (val instanceof ArkOr) {
-    return ['or', doSerialize(val.left), doSerialize(val.right)]
+    return ['or', valToJs(val.left), valToJs(val.right)]
   } else if (val instanceof ArkLoop) {
-    return ['and', doSerialize(val.body)]
+    return ['loop', valToJs(val.body)]
   } else if (val === ArkNull()) {
     return null
   } else if (val === ArkUndefined) {
@@ -83,7 +86,7 @@ function doSerialize(val: ArkVal): any {
     const obj = {}
     for (const k in val.obj) {
       if (Object.hasOwn(val.obj, k)) {
-        (obj as any)[k] = doSerialize((val.obj as any)[k])
+        (obj as any)[k] = valToJs((val.obj as any)[k])
       }
     }
     return obj
@@ -92,20 +95,20 @@ function doSerialize(val: ArkVal): any {
 }
 
 export function serializeVal(val: ArkVal) {
-  return JSON.stringify(doSerialize(val))
+  return JSON.stringify(valToJs(val))
 }
 
 function freeVarsToJs(freeVars: FreeVarsMap) {
   const obj: {[key: string]: {}} = {}
   for (const [sym, ref] of freeVars) {
-    obj[sym] = ref.map(doSerialize)
+    obj[sym] = ref.map(valToJs)
   }
   return obj
 }
 
 export function serializeCompiledArk(compiled: PartialCompiledArk): string {
   return JSON.stringify([
-    doSerialize(compiled.value),
+    valToJs(compiled.value),
     freeVarsToJs(compiled.freeVars),
     compiled.boundVars,
   ])

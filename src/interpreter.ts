@@ -540,7 +540,7 @@ export class ArkLoop extends ArkExp {
   }
 }
 
-export const intrinsics = new Map([
+export const intrinsics = new Namespace([
   ['pos', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(+toJs(val)))],
   ['neg', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(-toJs(val)))],
   ['not', new NativeFn((_ark: ArkState, val: ArkVal) => ArkBoolean(!toJs(val)))],

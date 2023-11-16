@@ -9,6 +9,8 @@ import {
   ArkAnd, ArkOr, ArkIf, ArkLoop,
   ArkGet, ArkSet, ArkLet, ArkCall, ArkFn,
   NativeObject, ArkObject, ArkList, ArkMap, ArkProperty, ArkPropertyRef,
+  ArkLiteral, ArkListLiteral, ArkMapLiteral, ArkObjectLiteral,
+  ArkStackRef, ArkCaptureRef,
 } from './interpreter.js'
 
 function doSerialize(val: ArkVal): any {
@@ -24,36 +26,32 @@ function doSerialize(val: ArkVal): any {
       return ['str', val.val]
     }
     return val.val
+  } else if (val instanceof ArkLiteral) {
+    return doSerialize(val.val)
   } else if (val instanceof ArkPropertyRef) {
     return ['ref', ['prop', doSerialize(val.obj), val.prop]]
+  } else if (val instanceof ArkStackRef || val instanceof ArkCaptureRef) {
+    return 'foo'
   } else if (val instanceof ArkValRef) {
     return ['ref', doSerialize(val.val)]
   } else if (val instanceof ArkGet) {
     return ['get', doSerialize(val.val)]
   } else if (val instanceof ArkFn) {
     return ['fn', ['params', ...val.params], doSerialize(val.body)]
-  } else if (val instanceof ArkObject) {
+  } else if (val instanceof ArkObject || val instanceof ArkObjectLiteral) {
     const obj = {}
     for (const [k, v] of val.val) {
       (obj as any)[k] = doSerialize(v)
     }
     return obj
-  } else if (val instanceof NativeObject) {
-    const obj = {}
-    for (const k in val.obj) {
-      if (Object.hasOwn(val.obj, k)) {
-        (obj as any)[k] = doSerialize((val.obj as any)[k])
-      }
-    }
-    return obj
-  } else if (val instanceof ArkMap) {
+  } else if (val instanceof ArkList || val instanceof ArkListLiteral) {
+    return ['list', ...val.list.map(doSerialize)]
+  } else if (val instanceof ArkMap || val instanceof ArkMapLiteral) {
     const obj: any[] = ['map']
     for (const [k, v] of val.map) {
       obj.push([doSerialize(k), doSerialize(v)])
     }
     return obj
-  } else if (val instanceof ArkList) {
-    return ['list', ...val.list.map(doSerialize)]
   } else if (val instanceof ArkLet) {
     return ['let', ['params', ...val.boundVars], doSerialize(val.body)]
   } else if (val instanceof ArkCall) {
@@ -81,6 +79,14 @@ function doSerialize(val: ArkVal): any {
     return null
   } else if (val === ArkUndefined) {
     return undefined
+  } else if (val instanceof NativeObject) {
+    const obj = {}
+    for (const k in val.obj) {
+      if (Object.hasOwn(val.obj, k)) {
+        (obj as any)[k] = doSerialize((val.obj as any)[k])
+      }
+    }
+    return obj
   }
   return val.toString()
 }

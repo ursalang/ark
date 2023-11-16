@@ -7,18 +7,18 @@ import assert from 'assert'
 import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   debug,
-  ArkVal, ArkExp, intrinsics, globals, FreeVarsMap,
+  ArkExp, ArkVal, intrinsics, globals, FreeVarsMap,
   ArkIf, ArkAnd, ArkOr, ArkSequence, ArkLoop,
   ArkConcreteVal, ArkNull, ArkBoolean, ArkNumber, ArkString,
-  ArkGet, ArkSet, ArkRef, ArkValRef, ArkStackRef, ArkCaptureRef,
+  ArkGet, ArkSet, ArkRef, ArkStackRef, ArkCaptureRef,
   ArkListLiteral, ArkObjectLiteral, ArkMapLiteral,
-  ArkFn, ArkProperty, ArkLet, ArkCall, ArkLiteral,
+  ArkFn, ArkProperty, ArkLet, ArkCall, ArkLiteral, ArkValRef,
 } from './interpreter.js'
 
 export class ArkCompilerError extends Error {}
 
-export class Namespace extends Map<string, ArkValRef> {
-  constructor(inits: [string, ArkValRef][]) {
+export class Namespace<T extends ArkVal> extends Map<string, T> {
+  constructor(inits: [string, T][]) {
     super(inits)
     for (const [name, val] of inits) {
       Namespace.setName(name, val)
@@ -31,7 +31,7 @@ export class Namespace extends Map<string, ArkValRef> {
     }
   }
 
-  set(name: string, val: ArkValRef) {
+  set(name: string, val: T) {
     Namespace.setName(name, val)
     super.set(name, val)
     return this
@@ -54,7 +54,7 @@ export class Environment {
   // Each stack frame consists of a pair of local vars and captures
   constructor(
     public stack: [string[], string[]][] = [[[], []]],
-    public externalSyms: Namespace = globals,
+    public externalSyms: Namespace<ArkValRef> = globals,
   ) {
     assert(stack.length > 0)
   }
@@ -139,6 +139,7 @@ export function symRef(env: Environment, name: string): CompiledArk {
     ref = new ArkCaptureRef(k)
     env.stack[0][1].push(name)
   }
+  ref.debug.set('name', name)
   return new CompiledArk(new ArkLiteral(ref), freeVars)
 }
 

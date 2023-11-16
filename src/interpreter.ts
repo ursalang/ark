@@ -196,8 +196,8 @@ export class ArkCall extends ArkExp {
   eval(ark: ArkState): ArkVal {
     const fn = this.fn
     let sym: ArkRef | undefined
-    if (fn instanceof ArkGet && fn.val instanceof ArkRef) {
-      sym = fn.val
+    if (fn instanceof ArkGet && fn.val instanceof ArkLiteral && fn.val.val instanceof ArkRef) {
+      sym = fn.val.val
     }
     const fnVal = fn.eval(ark)
     if (!(fnVal instanceof ArkClosure || fnVal instanceof NativeFn)) {

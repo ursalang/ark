@@ -54,6 +54,7 @@
   "pre-push": [
     "lint",
     "no-diff-or-untracked",
+    "clean",
     "test"
   ],
   "type": "module",

@@ -3,8 +3,8 @@
 // Released under the GPL version 3, or (at your option) any later version.
 
 import {
-  ArkState, ArkBoolean, ArkConcreteVal, ArkMap, ArkMapLiteral, ArkList, ArkListLiteral,
-  NativeFn, NativeObject, ArkNull, ArkNumber, ArkObject, ArkString, ArkVal,
+  ArkState, ArkVal, ArkNull, ArkBoolean, ArkNumber, ArkObject, ArkString,
+  ArkConcreteVal, ArkMap, ArkList, NativeFn, NativeObject,
 } from './interpreter.js'
 
 export class ArkFromJsError extends Error {}
@@ -31,10 +31,10 @@ export function fromJs(x: any, thisObj?: Object): ArkVal {
     return nativeFn
   }
   if (x instanceof Array) {
-    return new ArkListLiteral(x)
+    return new ArkList(x)
   }
   if (x instanceof Map) {
-    return new ArkMapLiteral(x)
+    return new ArkMap(x)
   }
   if (typeof x === 'object') {
     return new NativeObject(x)

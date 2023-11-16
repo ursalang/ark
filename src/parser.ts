@@ -115,7 +115,7 @@ function listToVals(env: Environment, l: any[]): [ArkExp[], FreeVars] {
   const vals = []
   const freeVars = new FreeVars()
   for (const v of l) {
-    const compiled = doCompile(v, env)
+    const compiled = doCompile(env, v)
     vals.push(compiled.value)
     freeVars.merge(compiled.freeVars)
   }
@@ -157,8 +157,7 @@ export class PartialCompiledArk extends CompiledArk {
   }
 }
 
-// FIXME: Swap argument order.
-function doCompile(value: any, env: Environment): CompiledArk {
+function doCompile(env: Environment, value: any): CompiledArk {
   if (value === null) {
     return new CompiledArk(new ArkLiteral(ArkNull()))
   }
@@ -184,7 +183,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
             throw new ArkCompilerError("Invalid 'let'")
           }
           const params = arkParamList(value[1])
-          const compiled = doCompile(value[2], env.push(params))
+          const compiled = doCompile(env.push(params), value[2])
           params.forEach((p) => compiled.freeVars.delete(p))
           return new CompiledArk(new ArkLet(params, compiled.value), compiled.freeVars)
         }
@@ -193,7 +192,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
             throw new ArkCompilerError("Invalid 'fn'")
           }
           const params = arkParamList(value[1])
-          const compiled = doCompile(value[2], env.pushFrame([params, []]))
+          const compiled = doCompile(env.pushFrame([params, []]), value[2])
           params.forEach((p) => compiled.freeVars.delete(p))
           return new CompiledArk(
             new ArkFn(params, [...compiled.freeVars.values()].flat(), compiled.value),
@@ -204,29 +203,29 @@ function doCompile(value: any, env: Environment): CompiledArk {
           if (value.length !== 3) {
             throw new ArkCompilerError("Invalid 'prop'")
           }
-          const compiled = doCompile(value[2], env)
+          const compiled = doCompile(env, value[2])
           return new CompiledArk(new ArkProperty(value[1], compiled.value), compiled.freeVars)
         }
         case 'ref': {
           if (value.length !== 2) {
             throw new ArkCompilerError("Invalid 'ref'")
           }
-          const compiled = doCompile(value[1], env)
+          const compiled = doCompile(env, value[1])
           return new CompiledArk(new ArkLiteral(compiled.value), compiled.freeVars)
         }
         case 'get': {
           if (value.length !== 2) {
             throw new ArkCompilerError("Invalid 'get'")
           }
-          const compiled = doCompile(value[1], env)
+          const compiled = doCompile(env, value[1])
           return new CompiledArk(new ArkGet(compiled.value), compiled.freeVars)
         }
         case 'set': {
           if (value.length !== 3) {
             throw new ArkCompilerError("Invalid 'set'")
           }
-          const compiledRef = doCompile(value[1], env)
-          const compiledVal = doCompile(value[2], env)
+          const compiledRef = doCompile(env, value[1])
+          const compiledVal = doCompile(env, value[2])
           const freeVars = new FreeVars(compiledVal.freeVars).merge(compiledRef.freeVars)
           return new CompiledArk(new ArkSet(compiledRef.value, compiledVal.value), freeVars)
         }
@@ -239,8 +238,8 @@ function doCompile(value: any, env: Environment): CompiledArk {
           const initsFreeVars = new FreeVars()
           for (const pair of value.slice(1)) {
             assert(pair instanceof Array && pair.length === 2)
-            const compiledKey = doCompile(pair[0], env)
-            const compiledVal = doCompile(pair[1], env)
+            const compiledKey = doCompile(env, pair[0])
+            const compiledVal = doCompile(env, pair[1])
             inits.set(compiledKey.value, compiledVal.value)
             initsFreeVars.merge(compiledKey.freeVars)
             initsFreeVars.merge(compiledVal.freeVars)
@@ -249,7 +248,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
         }
         case 'seq': {
           if (value.length === 2) {
-            return doCompile(value[1], env)
+            return doCompile(env, value[1])
           }
           const [elems, elemsFreeVars] = listToVals(env, value.slice(1))
           return new CompiledArk(new ArkSequence(elems), elemsFreeVars)
@@ -258,12 +257,12 @@ function doCompile(value: any, env: Environment): CompiledArk {
           if (value.length < 3 || value.length > 4) {
             throw new ArkCompilerError("Invalid 'if'")
           }
-          const compiledCond = doCompile(value[1], env)
-          const compiledThen = doCompile(value[2], env)
+          const compiledCond = doCompile(env, value[1])
+          const compiledThen = doCompile(env, value[2])
           let freeVars = new FreeVars(compiledCond.freeVars).merge(compiledThen.freeVars)
           let compiledElse
           if (value.length === 4) {
-            compiledElse = doCompile(value[3], env)
+            compiledElse = doCompile(env, value[3])
             freeVars = freeVars.merge(compiledElse.freeVars)
           }
           return new CompiledArk(new ArkIf(
@@ -276,8 +275,8 @@ function doCompile(value: any, env: Environment): CompiledArk {
           if (value.length !== 3) {
             throw new ArkCompilerError("Invalid 'and'")
           }
-          const compiledLeft = doCompile(value[1], env)
-          const compiledRight = doCompile(value[2], env)
+          const compiledLeft = doCompile(env, value[1])
+          const compiledRight = doCompile(env, value[2])
           const freeVars = new FreeVars(compiledLeft.freeVars).merge(compiledRight.freeVars)
           return new CompiledArk(new ArkAnd(compiledLeft.value, compiledRight.value), freeVars)
         }
@@ -285,8 +284,8 @@ function doCompile(value: any, env: Environment): CompiledArk {
           if (value.length !== 3) {
             throw new ArkCompilerError("Invalid 'or'")
           }
-          const compiledLeft = doCompile(value[1], env)
-          const compiledRight = doCompile(value[2], env)
+          const compiledLeft = doCompile(env, value[1])
+          const compiledRight = doCompile(env, value[2])
           const freeVars = new FreeVars(compiledLeft.freeVars).merge(compiledRight.freeVars)
           return new CompiledArk(new ArkOr(compiledLeft.value, compiledRight.value), freeVars)
         }
@@ -294,11 +293,11 @@ function doCompile(value: any, env: Environment): CompiledArk {
           if (value.length !== 2) {
             throw new ArkCompilerError("Invalid 'loop'")
           }
-          const compiledBody = doCompile(value[1], env)
+          const compiledBody = doCompile(env, value[1])
           return new CompiledArk(new ArkLoop(compiledBody.value), compiledBody.freeVars)
         }
         default: {
-          const compiledFn = doCompile(value[0], env)
+          const compiledFn = doCompile(env, value[0])
           const [args, argsFreeVars] = listToVals(env, value.slice(1))
           const freeVars = argsFreeVars.merge(compiledFn.freeVars)
           return new CompiledArk(new ArkCall(compiledFn.value, args), freeVars)
@@ -311,7 +310,7 @@ function doCompile(value: any, env: Environment): CompiledArk {
     const initsFreeVars = new FreeVars()
     for (const key in value) {
       if (Object.hasOwn(value, key)) {
-        const compiled = doCompile(value[key], env)
+        const compiled = doCompile(env, value[key])
         inits.set(key, compiled.value)
         initsFreeVars.merge(compiled.freeVars)
       }
@@ -325,7 +324,7 @@ export function compile(
   expr: string,
   env: Environment = new Environment(),
 ): CompiledArk {
-  const compiled = doCompile(JSON.parse(expr), env)
+  const compiled = doCompile(env, JSON.parse(expr))
   env.externalSyms.forEach((_val, id) => compiled.freeVars.delete(id))
   return compiled
 }

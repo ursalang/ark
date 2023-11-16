@@ -10,7 +10,7 @@ import {
   ArkGet, ArkSet, ArkLet, ArkCall, ArkFn,
   NativeObject, ArkObject, ArkList, ArkMap, ArkProperty, ArkPropertyRef,
   ArkLiteral, ArkListLiteral, ArkMapLiteral, ArkObjectLiteral,
-  ArkStackRef, ArkCaptureRef,
+  ArkStackRef, ArkCaptureRef, FreeVarsMap,
 } from './interpreter.js'
 
 function doSerialize(val: ArkVal): any {
@@ -95,10 +95,18 @@ export function serializeVal(val: ArkVal) {
   return JSON.stringify(doSerialize(val))
 }
 
+function freeVarsToJs(freeVars: FreeVarsMap) {
+  const obj: {[key: string]: {}} = {}
+  for (const [sym, ref] of freeVars) {
+    obj[sym] = ref.map(doSerialize)
+  }
+  return obj
+}
+
 export function serializeCompiledArk(compiled: PartialCompiledArk): string {
   return JSON.stringify([
     doSerialize(compiled.value),
-    JSON.stringify(compiled.freeVars),
-    JSON.stringify(compiled.boundVars),
+    freeVarsToJs(compiled.freeVars),
+    compiled.boundVars,
   ])
 }

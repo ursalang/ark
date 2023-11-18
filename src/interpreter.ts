@@ -396,6 +396,41 @@ export class ArkPropertyRef extends ArkRef {
   }
 }
 
+export class ArkList extends ArkClass {
+  constructor(public list: ArkVal[]) {
+    super(new Map([
+      ['get', new NativeFn((index: ArkVal) => this.list[toJs(index)])],
+      ['set', new NativeFn(
+        (index: ArkVal, val: ArkVal) => {
+          this.list[toJs(index)] = val
+          return val
+        },
+      )],
+      ['iterator', new NativeFn(() => {
+        const list = this.list
+        const generator = (function* listGenerator() {
+          for (const elem of list) {
+            yield elem
+          }
+          return ArkNull()
+        }())
+        return new NativeFn(() => generator.next().value)
+      })],
+    ]))
+    this.val.set('length', ArkNumber(this.list.length))
+  }
+}
+
+export class ArkListLiteral extends ArkExp {
+  constructor(public list: ArkExp[]) {
+    super()
+  }
+
+  eval(ark: ArkState): ArkVal {
+    return new ArkList(this.list.map((e) => e.eval(ark)))
+  }
+}
+
 export class ArkMap extends ArkClass {
   constructor(public map: Map<ArkVal, ArkVal>) {
     super(new Map([
@@ -406,6 +441,16 @@ export class ArkMap extends ArkClass {
         },
       )],
       ['get', new NativeFn((index: ArkVal) => this.map.get(index) ?? ArkNull())],
+      ['iterator', new NativeFn(() => {
+        const map = this.map
+        const generator = (function* listGenerator() {
+          for (const [key, value] of map.entries()) {
+            yield new ArkList([key, value])
+          }
+          return ArkNull()
+        }())
+        return new NativeFn(() => generator.next().value)
+      })],
     ]))
   }
 }
@@ -421,31 +466,6 @@ export class ArkMapLiteral extends ArkExp {
       evaluatedMap.set(k.eval(ark), v.eval(ark))
     }
     return new ArkMap(evaluatedMap)
-  }
-}
-
-export class ArkList extends ArkClass {
-  constructor(public list: ArkVal[]) {
-    super(new Map([
-      ['get', new NativeFn((index: ArkVal) => this.list[toJs(index)])],
-      ['set', new NativeFn(
-        (index: ArkVal, val: ArkVal) => {
-          this.list[toJs(index)] = val
-          return val
-        },
-      )],
-    ]))
-    this.val.set('length', ArkNumber(this.list.length))
-  }
-}
-
-export class ArkListLiteral extends ArkExp {
-  constructor(public list: ArkExp[]) {
-    super()
-  }
-
-  eval(ark: ArkState): ArkVal {
-    return new ArkList(this.list.map((e) => e.eval(ark)))
   }
 }
 

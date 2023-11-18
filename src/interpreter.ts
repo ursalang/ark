@@ -183,7 +183,7 @@ export class ArkFn extends ArkExp {
 }
 
 export class NativeFn extends ArkExp {
-  constructor(public body: (ark: ArkState, ...args: ArkVal[]) => ArkVal) {
+  constructor(public body: (...args: ArkVal[]) => ArkVal) {
     super()
   }
 }
@@ -209,7 +209,7 @@ export class ArkCall extends ArkExp {
     }
     let res: ArkVal = ArkNull()
     if (fnVal instanceof NativeFn) {
-      res = fnVal.body(ark, ...evaluatedArgs)
+      res = fnVal.body(...evaluatedArgs)
     } else {
       try {
         const frame = bindArgsToParams(fnVal.params, evaluatedArgs)
@@ -400,12 +400,12 @@ export class ArkMap extends ArkClass {
   constructor(public map: Map<ArkVal, ArkVal>) {
     super(new Map([
       ['set', new NativeFn(
-        (_ark: ArkState, index: ArkVal, val: ArkVal) => {
+        (index: ArkVal, val: ArkVal) => {
           this.map.set(index, val)
           return val
         },
       )],
-      ['get', new NativeFn((_ark: ArkState, index: ArkVal) => this.map.get(index) ?? ArkNull())],
+      ['get', new NativeFn((index: ArkVal) => this.map.get(index) ?? ArkNull())],
     ]))
   }
 }
@@ -427,9 +427,9 @@ export class ArkMapLiteral extends ArkExp {
 export class ArkList extends ArkClass {
   constructor(public list: ArkVal[]) {
     super(new Map([
-      ['get', new NativeFn((_ark: ArkState, index: ArkVal) => this.list[toJs(index)])],
+      ['get', new NativeFn((index: ArkVal) => this.list[toJs(index)])],
       ['set', new NativeFn(
-        (_ark: ArkState, index: ArkVal, val: ArkVal) => {
+        (index: ArkVal, val: ArkVal) => {
           this.list[toJs(index)] = val
           return val
         },
@@ -541,53 +541,53 @@ export class ArkLoop extends ArkExp {
 }
 
 export const intrinsics = new Namespace([
-  ['pos', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(+toJs(val)))],
-  ['neg', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(-toJs(val)))],
-  ['not', new NativeFn((_ark: ArkState, val: ArkVal) => ArkBoolean(!toJs(val)))],
-  ['~', new NativeFn((_ark: ArkState, val: ArkVal) => ArkNumber(~toJs(val)))],
-  ['break', new NativeFn((_ark: ArkState, val: ArkVal) => {
+  ['pos', new NativeFn((val: ArkVal) => ArkNumber(+toJs(val)))],
+  ['neg', new NativeFn((val: ArkVal) => ArkNumber(-toJs(val)))],
+  ['not', new NativeFn((val: ArkVal) => ArkBoolean(!toJs(val)))],
+  ['~', new NativeFn((val: ArkVal) => ArkNumber(~toJs(val)))],
+  ['break', new NativeFn((val: ArkVal) => {
     throw new ArkBreakException(val)
   })],
   ['continue', new NativeFn(() => {
     throw new ArkContinueException()
   })],
-  ['return', new NativeFn((_ark: ArkState, val: ArkVal) => {
+  ['return', new NativeFn((val: ArkVal) => {
     throw new ArkReturnException(val)
   })],
-  ['=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) === toJs(right)))],
-  ['!=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) !== toJs(right)))],
-  ['<', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) < toJs(right)))],
-  ['<=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) <= toJs(right)))],
-  ['>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) > toJs(right)))],
-  ['>=', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) >= toJs(right)))],
-  ['+', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) + toJs(right)))],
-  ['-', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) - toJs(right)))],
-  ['*', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) * toJs(right)))],
-  ['/', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) / toJs(right)))],
-  ['%', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) % toJs(right)))],
-  ['**', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) ** toJs(right)))],
-  ['&', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) & toJs(right)))],
-  ['|', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) | toJs(right)))],
-  ['^', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) ^ toJs(right)))],
-  ['<<', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) << toJs(right)))],
-  ['>>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >> toJs(right)))],
-  ['>>>', new NativeFn((_ark: ArkState, left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >>> toJs(right)))],
+  ['=', new NativeFn((left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) === toJs(right)))],
+  ['!=', new NativeFn((left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) !== toJs(right)))],
+  ['<', new NativeFn((left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) < toJs(right)))],
+  ['<=', new NativeFn((left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) <= toJs(right)))],
+  ['>', new NativeFn((left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) > toJs(right)))],
+  ['>=', new NativeFn((left: ArkVal, right: ArkVal) => ArkBoolean(toJs(left) >= toJs(right)))],
+  ['+', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) + toJs(right)))],
+  ['-', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) - toJs(right)))],
+  ['*', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) * toJs(right)))],
+  ['/', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) / toJs(right)))],
+  ['%', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) % toJs(right)))],
+  ['**', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) ** toJs(right)))],
+  ['&', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) & toJs(right)))],
+  ['|', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) | toJs(right)))],
+  ['^', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) ^ toJs(right)))],
+  ['<<', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) << toJs(right)))],
+  ['>>', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >> toJs(right)))],
+  ['>>>', new NativeFn((left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >>> toJs(right)))],
 ])
 
 export const globals = new Namespace([
   ['pi', new ArkValRef(ArkNumber(Math.PI))],
   ['e', new ArkValRef(ArkNumber(Math.E))],
-  ['print', new ArkValRef(new NativeFn((_ark: ArkState, obj: ArkVal) => {
+  ['print', new ArkValRef(new NativeFn((obj: ArkVal) => {
     console.log(toJs(obj))
     return ArkNull()
   }))],
-  ['debug', new ArkValRef(new NativeFn((_ark: ArkState, obj: ArkVal) => {
+  ['debug', new ArkValRef(new NativeFn((obj: ArkVal) => {
     debug(obj)
     return ArkNull()
   }))],
   ['fs', new ArkValRef(new NativeObject(fs))],
   // ['js', new ValRef(new Obj(new Map([[
-  //   'use', new NativeFn('js', async (_ark: ArkState, ...args: Val[]) => {
+  //   'use', new NativeFn('js', async (...args: Val[]) => {
   //     const importPath = (args.map(toJs).join('.'))
   //     const module = await import(requirePath)
   //     const wrappedModule = new Map()
@@ -600,7 +600,7 @@ export const globals = new Namespace([
   // ]])))],
   ['JSON', new ArkValRef(new NativeObject(JSON))],
   ['process', new ArkValRef(new NativeObject(process))],
-  ['RegExp', new ArkValRef(new NativeFn((_ark: ArkState, regex: ArkVal, options: ArkVal) => new NativeObject(new RegExp(
+  ['RegExp', new ArkValRef(new NativeFn((regex: ArkVal, options: ArkVal) => new NativeObject(new RegExp(
     (regex as ArkConcreteVal<string>).val,
     ((options ?? ArkString('')) as ArkConcreteVal<string>).val,
   )))),

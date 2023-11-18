@@ -3,7 +3,7 @@
 // Released under the GPL version 3, or (at your option) any later version.
 
 import {
-  ArkState, ArkVal, ArkNull, ArkBoolean, ArkNumber, ArkObject, ArkString,
+  ArkVal, ArkNull, ArkBoolean, ArkNumber, ArkObject, ArkString,
   ArkConcreteVal, ArkMap, ArkList, NativeFn, NativeObject,
 } from './interpreter.js'
 
@@ -25,7 +25,7 @@ export function fromJs(x: any, thisObj?: Object): ArkVal {
   if (typeof x === 'function') {
     const fn = thisObj ? x.bind(thisObj) : x
     const nativeFn = new NativeFn(
-      (_ark: ArkState, ...args: ArkVal[]) => fromJs(fn(...args.map(toJs))),
+      (...args: ArkVal[]) => fromJs(fn(...args.map(toJs))),
     )
     nativeFn.debug.set('name', x.name)
     return nativeFn

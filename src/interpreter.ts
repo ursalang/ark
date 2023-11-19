@@ -415,6 +415,14 @@ export class ArkList extends ArkClass {
           return val
         },
       )],
+      ['push', new NativeFn((item: ArkVal) => {
+        this.list.push(item)
+        return this
+      })],
+      ['pop', new NativeFn(() => {
+        this.list.pop()
+        return this
+      })],
       ['iterator', new NativeFn(() => {
         const list = this.list
         const generator = (function* listGenerator() {

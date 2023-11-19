@@ -458,6 +458,11 @@ export class ArkMap extends ArkClass {
         },
       )],
       ['get', new NativeFn((index: ArkVal) => this.map.get(index) ?? ArkNull())],
+      ['delete', new NativeFn((index: ArkVal) => {
+        this.map.delete(index)
+        return this
+      })],
+      ['has', new NativeFn((index: ArkVal) => ArkBoolean(this.map.has(index)))],
       ['iterator', new NativeFn(() => {
         const map = this.map
         const generator = (function* mapEntriesGenerator() {

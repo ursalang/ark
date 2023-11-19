@@ -452,9 +452,29 @@ export class ArkMap extends ArkClass {
       ['get', new NativeFn((index: ArkVal) => this.map.get(index) ?? ArkNull())],
       ['iterator', new NativeFn(() => {
         const map = this.map
-        const generator = (function* listGenerator() {
+        const generator = (function* mapEntriesGenerator() {
           for (const [key, value] of map.entries()) {
             yield new ArkList([key, value])
+          }
+          return ArkNull()
+        }())
+        return new NativeFn(() => generator.next().value)
+      })],
+      ['keys', new NativeFn(() => {
+        const map = this.map
+        const generator = (function* mapKeysGenerator() {
+          for (const key of map.keys()) {
+            yield key
+          }
+          return ArkNull()
+        }())
+        return new NativeFn(() => generator.next().value)
+      })],
+      ['values', new NativeFn(() => {
+        const map = this.map
+        const generator = (function* mapValuesGenerator() {
+          for (const value of map.values()) {
+            yield value
           }
           return ArkNull()
         }())

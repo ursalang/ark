@@ -105,6 +105,11 @@ export class ArkConcreteVal<T> extends ArkVal {
   }
 }
 
+export class ArkNullType extends ArkConcreteVal<null> {}
+export class ArkBooleanType extends ArkConcreteVal<boolean> {}
+export class ArkNumberType extends ArkConcreteVal<number> {}
+export class ArkStringType extends ArkConcreteVal<string> {}
+
 class ConcreteInterned {
   constructor() {
     throw new Error('use ConcreteInterned.create, not constructor')
@@ -116,16 +121,16 @@ class ConcreteInterned {
     (key) => this.intern.delete(key),
   )
 
-  static value<T>(rawVal: T): ArkConcreteVal<T> {
+  static value<T extends ArkConcreteVal<U>, U>(TConstructor: new (val: U) => T, rawVal: U): T {
     let ref = ConcreteInterned.intern.get(rawVal)
-    let val: ArkConcreteVal<T>
+    let val: T
     if (ref === undefined || ref.deref() === undefined) {
-      val = new ArkConcreteVal(rawVal)
+      val = new TConstructor(rawVal)
       ref = new WeakRef(val)
       ConcreteInterned.intern.set(rawVal, ref)
       ConcreteInterned.registry.register(val, rawVal, val)
     } else {
-      val = ref.deref()!
+      val = ref.deref()! as T
     }
     return val
   }
@@ -133,10 +138,18 @@ class ConcreteInterned {
 
 export const ArkUndefined = new ArkVal()
 ArkUndefined.debug.set('name', 'Undefined')
-export const ArkNull = () => ConcreteInterned.value(null)
-export const ArkBoolean = (b: boolean) => ConcreteInterned.value(b)
-export const ArkNumber = (n: number) => ConcreteInterned.value(n)
-export const ArkString = (s: string) => ConcreteInterned.value(s)
+export function ArkNull() {
+  return ConcreteInterned.value<ArkNullType, null>(ArkNullType, null)
+}
+export function ArkBoolean(b: boolean) {
+  return ConcreteInterned.value<ArkBooleanType, boolean>(ArkBooleanType, b)
+}
+export function ArkNumber(n: number) {
+  return ConcreteInterned.value<ArkNumberType, number>(ArkNumberType, n)
+}
+export function ArkString(s: string) {
+  return ConcreteInterned.value<ArkStringType, string>(ArkStringType, s)
+}
 
 export class ArkNonLocalReturn extends Error {
   constructor(public readonly val: ArkVal = ArkNull()) {
@@ -307,7 +320,13 @@ export class ArkSet extends ArkExp {
     const ref = this.ref.eval(ark)
     const res = this.val.eval(ark)
     if (!(ref instanceof ArkRef)) {
-      throw new ArkRuntimeError('Invalid assignment', this)
+      throw new ArkRuntimeError('Assignment to non-reference', this)
+    }
+    const oldVal = ref.get(ark.stack)
+    if (oldVal !== ArkUndefined
+      && oldVal.constructor !== ArkNullType
+      && res.constructor !== oldVal.constructor) {
+      throw new ArkRuntimeError('Assignment to different type', this)
     }
     ref.set(ark.stack, res)
     return res

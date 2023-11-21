@@ -5,6 +5,7 @@
 import fs from 'fs'
 import assert from 'assert'
 
+import programVersion from './version.js'
 import {CompiledArk, Namespace} from './parser.js'
 import {ArkFromJsError, fromJs, toJs} from './ffi.js'
 
@@ -656,6 +657,7 @@ export const intrinsics = new Namespace([
 ])
 
 export const globals = new Namespace([
+  ['version', new ArkValRef(ArkString(programVersion))],
   ['pi', new ArkValRef(ArkNumber(Math.PI))],
   ['e', new ArkValRef(ArkNumber(Math.E))],
   ['print', new ArkValRef(new NativeFn((obj: ArkVal) => {

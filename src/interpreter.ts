@@ -4,6 +4,7 @@
 
 import fs from 'fs'
 import assert from 'assert'
+import util from 'util'
 
 import programVersion from './version.js'
 import {CompiledArk, Namespace} from './parser.js'
@@ -72,6 +73,7 @@ export class Ark {
   static nextId = 0
 
   constructor() {
+    Object.defineProperty(this, 'debug', {enumerable: false})
     this.debug.set('uid', Ark.nextId)
     Ark.nextId += 1
   }
@@ -82,7 +84,12 @@ export class Ark {
 export class ArkVal extends Ark {}
 
 export class ArkExp extends Ark {
-  // Make this class incompatible with ArkVal.
+  constructor() {
+    super()
+    // Make this class incompatible with ArkVal.
+    Object.defineProperty(this, '_arkexp', {})
+  }
+
   _arkexp: undefined
 
   eval(_ark: ArkState): ArkVal {
@@ -694,5 +701,5 @@ if (globalThis.document !== undefined) {
 }
 
 export function debug(x: any, depth: number | null = 1) {
-  console.dir(x, {depth, colors: true})
+  console.log(util.inspect(x, {depth, colors: true, sorted: true}))
 }

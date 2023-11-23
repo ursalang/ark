@@ -246,6 +246,7 @@ export class ArkCall extends ArkExp {
           throw e
         }
         res = e.val
+        ark.stack.popFrame()
       }
     }
     return res

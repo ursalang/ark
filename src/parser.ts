@@ -7,7 +7,7 @@ import assert from 'assert'
 import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   debug,
-  ArkExp, ArkVal, intrinsics, globals, FreeVarsMap,
+  ArkExp, ArkVal, intrinsics, globals,
   ArkIf, ArkAnd, ArkOr, ArkSequence, ArkLoop,
   ArkConcreteVal, ArkNull, ArkBoolean, ArkNumber, ArkString,
   ArkGet, ArkSet, ArkRef, ArkStackRef, ArkCaptureRef,
@@ -38,13 +38,10 @@ export class Namespace<T extends ArkVal> extends Map<string, T> {
   }
 }
 
-export class FreeVars extends Map<string, ArkStackRef[]> {
-  merge(moreVars: FreeVarsMap): FreeVars {
-    for (const [name, symrefs] of moreVars) {
-      if (!this.has(name)) {
-        this.set(name, [])
-      }
-      this.get(name)!.push(...symrefs)
+export class FreeVars extends Map<string, ArkStackRef> {
+  merge(moreVars: FreeVars): FreeVars {
+    for (const [name, symref] of moreVars) {
+      this.set(name, symref)
     }
     return this
   }
@@ -128,7 +125,7 @@ export function symRef(env: Environment, name: string): CompiledArk {
     return new CompiledArk(val)
   }
   let ref = env.getIndex(name)
-  const freeVars = new FreeVars(ref instanceof ArkStackRef ? [[name, [ref]]] : [])
+  const freeVars = new FreeVars(ref instanceof ArkStackRef ? [[name, ref]] : [])
   const i = env.stack[0][1].lastIndexOf(name)
   if (i !== -1) {
     ref = new ArkCaptureRef(i)
@@ -144,13 +141,13 @@ export function symRef(env: Environment, name: string): CompiledArk {
 }
 
 export class CompiledArk {
-  constructor(public value: ArkExp, public freeVars: FreeVarsMap = new Map()) {}
+  constructor(public value: ArkExp, public freeVars: FreeVars = new FreeVars()) {}
 }
 
 export class PartialCompiledArk extends CompiledArk {
   constructor(
     public value: ArkExp,
-    public freeVars: FreeVarsMap = new Map(),
+    public freeVars: FreeVars = new FreeVars(),
     public boundVars: string[] = [],
   ) {
     super(value, freeVars)
@@ -259,11 +256,11 @@ function doCompile(env: Environment, value: any): CompiledArk {
           }
           const compiledCond = doCompile(env, value[1])
           const compiledThen = doCompile(env, value[2])
-          let freeVars = new FreeVars(compiledCond.freeVars).merge(compiledThen.freeVars)
+          const freeVars = new FreeVars(compiledCond.freeVars).merge(compiledThen.freeVars)
           let compiledElse
           if (value.length === 4) {
             compiledElse = doCompile(env, value[3])
-            freeVars = freeVars.merge(compiledElse.freeVars)
+            freeVars.merge(compiledElse.freeVars)
           }
           return new CompiledArk(new ArkIf(
             compiledCond.value,

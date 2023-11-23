@@ -41,8 +41,6 @@ export class RuntimeStack {
   }
 }
 
-export type FreeVarsMap = Map<string, ArkStackRef[]>
-
 export class ArkState {
   readonly stack = new RuntimeStack()
 

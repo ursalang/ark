@@ -2,7 +2,7 @@
 // © Reuben Thomas 2023
 // Released under the GPL version 3, or (at your option) any later version.
 
-import {PartialCompiledArk} from './parser.js'
+import {FreeVars, PartialCompiledArk} from './parser.js'
 import {
   ArkVal, ArkValRef, ArkConcreteVal,
   ArkUndefined, ArkNull, ArkSequence,
@@ -10,7 +10,7 @@ import {
   ArkGet, ArkSet, ArkLet, ArkCall, ArkFn,
   NativeObject, ArkObject, ArkList, ArkMap, ArkProperty, ArkPropertyRef,
   ArkLiteral, ArkListLiteral, ArkMapLiteral, ArkObjectLiteral,
-  ArkStackRef, ArkCaptureRef, FreeVarsMap,
+  ArkStackRef, ArkCaptureRef,
 } from './interpreter.js'
 
 export function valToJs(val: ArkVal): any {
@@ -98,10 +98,10 @@ export function serializeVal(val: ArkVal) {
   return JSON.stringify(valToJs(val))
 }
 
-function freeVarsToJs(freeVars: FreeVarsMap) {
+function freeVarsToJs(freeVars: FreeVars) {
   const obj: {[key: string]: {}} = {}
   for (const [sym, ref] of freeVars) {
-    obj[sym] = ref.map(valToJs)
+    obj[sym] = valToJs(ref)
   }
   return obj
 }

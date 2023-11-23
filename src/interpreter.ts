@@ -180,7 +180,7 @@ function bindArgsToParams(params: string[], args: ArkVal[]): ArkRef[] {
   return frame
 }
 
-class ArkClosure extends ArkExp {
+class ArkClosure extends ArkVal {
   constructor(public params: string[], public freeVars: ArkRef[], public body: ArkExp) {
     super()
   }

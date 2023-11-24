@@ -201,7 +201,7 @@ export class ArkFn extends ArkExp {
   }
 }
 
-export class NativeFn extends ArkExp {
+export class NativeFn extends ArkVal {
   constructor(public body: (...args: ArkVal[]) => ArkVal) {
     super()
   }

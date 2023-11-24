@@ -122,7 +122,7 @@ function listToVals(env: Environment, l: any[]): [ArkExp[], FreeVars] {
 export function symRef(env: Environment, name: string): CompiledArk {
   const val = intrinsics.get(name)
   if (val !== undefined) {
-    return new CompiledArk(val)
+    return new CompiledArk(new ArkLiteral(val))
   }
   let ref = env.getIndex(name)
   const freeVars = new FreeVars(ref instanceof ArkStackRef ? [[name, ref]] : [])

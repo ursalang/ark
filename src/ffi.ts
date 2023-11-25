@@ -25,6 +25,7 @@ export function fromJs(x: any, thisObj?: Object): ArkVal {
   if (typeof x === 'function') {
     const fn = thisObj ? x.bind(thisObj) : x
     const nativeFn = new NativeFn(
+      [],
       (...args: ArkVal[]) => fromJs(fn(...args.map(toJs))),
     )
     nativeFn.debug.set('name', x.name)

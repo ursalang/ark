@@ -85,7 +85,7 @@ export class ArkExp extends Ark {
   constructor() {
     super()
     // Make this class incompatible with ArkVal.
-    Object.defineProperty(this, '_arkexp', {})
+    Object.defineProperty(this, '_arkexp', {enumerable: false})
   }
 
   _arkexp: undefined

@@ -350,13 +350,13 @@ export class ArkSet extends ArkExp {
   }
 }
 
-export abstract class ArkRawClass extends ArkVal {
+abstract class ArkAbstractClass extends ArkVal {
   abstract get(prop: string): ArkVal | undefined
 
   abstract set(prop: string, val: ArkVal): ArkVal
 }
 
-export class ArkClass extends ArkRawClass {
+export class ArkClass extends ArkAbstractClass {
   public val: Map<string, ArkVal>
 
   constructor(obj: Map<string, ArkVal>) {
@@ -390,7 +390,7 @@ export class ArkObjectLiteral extends ArkExp {
   }
 }
 
-export class NativeObject extends ArkRawClass {
+export class NativeObject extends ArkAbstractClass {
   constructor(public obj: Object) {
     super()
   }
@@ -419,7 +419,7 @@ export class ArkProperty extends ArkExp {
 
   eval(ark: ArkState): ArkVal {
     const obj = this.obj.eval(ark)
-    if (!(obj instanceof ArkRawClass)) {
+    if (!(obj instanceof ArkAbstractClass)) {
       throw new ArkRuntimeError('Attempt to read property of non-object', this)
     }
     return new ArkPropertyRef(obj, this.prop)
@@ -427,7 +427,7 @@ export class ArkProperty extends ArkExp {
 }
 
 export class ArkPropertyRef extends ArkRef {
-  constructor(public obj: ArkRawClass, public prop: string) {
+  constructor(public obj: ArkAbstractClass, public prop: string) {
     super()
   }
 

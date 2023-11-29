@@ -12,7 +12,7 @@ import {
   ArkConcreteVal, ArkNull, ArkBoolean, ArkNumber, ArkString,
   ArkGet, ArkSet, ArkRef, ArkStackRef, ArkCaptureRef,
   ArkListLiteral, ArkObjectLiteral, ArkMapLiteral,
-  ArkFn, ArkProperty, ArkLet, ArkCall, ArkLiteral, ArkValRef,
+  ArkFn, ArkProperty, ArkLet, ArkCall, ArkLiteral, ArkObject,
 } from './interpreter.js'
 
 export class ArkCompilerError extends Error {}
@@ -51,7 +51,7 @@ export class Environment {
   // Each stack frame consists of a pair of local vars and captures
   constructor(
     public stack: [string[], string[]][] = [[[], []]],
-    public externalSyms: Namespace<ArkValRef> = globals,
+    public externalSyms: ArkObject = globals,
   ) {
     assert(stack.length > 0)
   }
@@ -76,15 +76,14 @@ export class Environment {
       }
     }
     if (ref === undefined) {
-      if (this.externalSyms.has(sym)) {
-        ref = this.externalSyms.get(sym)!
-      } else {
+      ref = this.externalSyms.get(sym)
+      if (ref === undefined) {
         throw new ArkCompilerError(`Undefined symbol ${sym}`)
       }
     }
     ref.debug.set('name', sym)
     ref.debug.set('env', JSON.stringify(this))
-    return ref
+    return ref as ArkRef
   }
 }
 
@@ -322,6 +321,6 @@ export function compile(
   env: Environment = new Environment(),
 ): CompiledArk {
   const compiled = doCompile(env, JSON.parse(expr))
-  env.externalSyms.forEach((_val, id) => compiled.freeVars.delete(id))
+  env.externalSyms.val.forEach((_val, id) => compiled.freeVars.delete(id))
   return compiled
 }

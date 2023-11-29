@@ -686,7 +686,7 @@ export const intrinsics = new Namespace([
   ['>>>', new NativeFn(['left', 'right'], (left: ArkVal, right: ArkVal) => ArkNumber(toJs(left) >>> toJs(right)))],
 ])
 
-export const globals = new Namespace([
+export const globals = new ArkObject(new Map([
   ['version', new ArkValRef(ArkString(programVersion))],
   ['pi', new ArkValRef(ArkNumber(Math.PI))],
   ['e', new ArkValRef(ArkNumber(Math.E))],
@@ -718,7 +718,7 @@ export const globals = new Namespace([
     ((options ?? ArkString('')) as ArkConcreteVal<string>).val,
   )))),
   ],
-])
+]))
 if (globalThis.document !== undefined) {
   globals.set('document', new ArkValRef(new NativeObject(globalThis.document)))
 }

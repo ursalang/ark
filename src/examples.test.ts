@@ -16,4 +16,5 @@ import {cliTest} from './testutil.js'
   ['Assign to table', 'test/assign-to-table'],
   ['Repeated closure', 'test/repeated-closure'],
   ['Two double closures', 'test/two-double-closures'],
-].map(([title, file]) => cliTest(title, file))
+  // eslint-disable-next-line @typescript-eslint/return-await
+].map(async ([title, file]) => await cliTest(title, file))

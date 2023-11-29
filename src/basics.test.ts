@@ -49,8 +49,8 @@ testGroup('Conditionals', [
   ['["and",1,2]', 2],
 ])
 
-test('Bare break', (t) => {
-  const error = t.throws(() => new ArkState().run(compile('["break"]')), {instanceOf: ArkBreakException})
+test('Bare break', async (t) => {
+  const error = await t.throwsAsync(() => new ArkState().run(compile('["break"]')), {instanceOf: ArkBreakException})
   if (error !== undefined) {
     t.is(toJs(error.val), null)
   }

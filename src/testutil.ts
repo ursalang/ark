@@ -17,24 +17,25 @@ function doCompile(source: string) {
   return compiled
 }
 
-export function testGroup(
+export async function testGroup(
   title: string,
   tests: [string, any][],
 ) {
-  test(title, (t) => {
+  test(title, async (t) => {
     for (const [source, expected] of tests) {
       const compiled = doCompile(source)
-      t.deepEqual(toJs(new ArkState().run(compiled)), expected)
+      // eslint-disable-next-line no-await-in-loop
+      t.deepEqual(toJs(await new ArkState().run(compiled)), expected)
     }
   })
 }
 
-export function cliTest(title: string, file: string) {
-  test(title, (t) => {
+export async function cliTest(title: string, file: string) {
+  test(title, async (t) => {
     const source = fs.readFileSync(`${file}.json`, {encoding: 'utf-8'})
     const expected = fs.readFileSync(`${file}.result.json`, {encoding: 'utf-8'})
     const compiled = doCompile(source)
     t.deepEqual(valToJs(compiled.value), JSON.parse(source))
-    t.deepEqual(valToJs(new ArkState().run(compiled)), JSON.parse(expected))
+    t.deepEqual(valToJs(await new ArkState().run(compiled)), JSON.parse(expected))
   })
 }

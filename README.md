@@ -1,5 +1,7 @@
 # Ark
 
+THIS PACKAGE HAS BEEN FOLDED BACK INTO URSA: https://github.com/ursalang/ursa
+
 © 2023 Reuben Thomas <rrt@sc3d.org>  
 https://ursalang.github.io  
 
